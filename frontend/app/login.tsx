@@ -113,15 +113,22 @@ export default function LoginScreen() {
           </View>
 
           <TouchableOpacity
-            style={styles.loginButton}
+            style={styles.googleButton}
             onPress={handleLogin}
             disabled={loading}
           >
             {loading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.loginButtonText}>Login</Text>
+              <Text style={styles.googleButtonText}>Login</Text>
             )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.forgotPassword}
+            onPress={() => router.push('/forgot-password')}
+          >
+            <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
           </TouchableOpacity>
 
           <View style={styles.signupContainer}>
@@ -230,6 +237,15 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  forgotPassword: {
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  forgotPasswordText: {
+    fontSize: 14,
+    color: '#5B4FCE',
+    textDecoration: 'underline',
   },
   signupContainer: {
     flexDirection: 'row',

@@ -102,10 +102,17 @@ class SignupRequest(BaseModel):
     password: str
     name: str
     phone: Optional[str] = None
+    security_question: Optional[str] = None
+    security_answer: Optional[str] = None
 
 class LoginRequest(BaseModel):
     username: str
     password: str
+
+class ForgotPasswordRequest(BaseModel):
+    username: str
+    security_answer: str
+    new_password: str
 
 class UpdateProfileRequest(BaseModel):
     name: Optional[str] = None
@@ -237,6 +244,11 @@ async def signup(signup_data: SignupRequest):
     user_id = f"user_{uuid.uuid4().hex[:12]}"
     password_hash = hash_password(signup_data.password)
     
+    # Hash security answer if provided
+    security_answer_hash = None
+    if signup_data.security_answer:
+        security_answer_hash = hash_password(signup_data.security_answer.lower().strip())
+    
     new_user = {
         "user_id": user_id,
         "username": signup_data.username,
@@ -246,6 +258,8 @@ async def signup(signup_data: SignupRequest):
         "picture": None,
         "role": "member",
         "tag": None,
+        "security_question": signup_data.security_question,
+        "security_answer_hash": security_answer_hash,
         "created_at": datetime.now(timezone.utc)
     }
     
@@ -348,6 +362,59 @@ async def change_password(
     )
     
     return {"message": "Password changed successfully"}
+
+@api_router.post("/auth/forgot-password")
+async def forgot_password(forgot_data: ForgotPasswordRequest):
+    """Reset password using security answer"""
+    # Find user
+    user_doc = await db.users.find_one({"username": forgot_data.username})
+    
+    if not user_doc:
+        raise HTTPException(status_code=404, detail="Username not found")
+    
+    # Check if user has security question set
+    if not user_doc.get("security_answer_hash"):
+        raise HTTPException(
+            status_code=400, 
+            detail="No security question set. Please contact admin to reset your password"
+        )
+    
+    # Verify security answer
+    answer_to_verify = forgot_data.security_answer.lower().strip()
+    if not verify_password(answer_to_verify, user_doc["security_answer_hash"]):
+        raise HTTPException(status_code=400, detail="Incorrect security answer")
+    
+    # Validate new password
+    if len(forgot_data.new_password) < 6:
+        raise HTTPException(status_code=400, detail="New password must be at least 6 characters")
+    
+    # Hash and update new password
+    new_password_hash = hash_password(forgot_data.new_password)
+    await db.users.update_one(
+        {"user_id": user_doc["user_id"]},
+        {"$set": {"password_hash": new_password_hash}}
+    )
+    
+    # Invalidate all sessions for this user
+    await db.user_sessions.delete_many({"user_id": user_doc["user_id"]})
+    
+    return {"message": "Password reset successfully. Please login with your new password"}
+
+@api_router.get("/auth/check-security-question/{username}")
+async def check_security_question(username: str):
+    """Check if user has security question set"""
+    user_doc = await db.users.find_one({"username": username})
+    
+    if not user_doc:
+        raise HTTPException(status_code=404, detail="Username not found")
+    
+    has_security_question = bool(user_doc.get("security_question"))
+    
+    return {
+        "has_security_question": has_security_question,
+        "security_question": user_doc.get("security_question") if has_security_question else None,
+        "message": "Contact admin to reset password" if not has_security_question else None
+    }
 
 # ============= USER/PROFILE ENDPOINTS =============
 
