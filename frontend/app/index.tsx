@@ -15,7 +15,7 @@ export default function SplashScreen() {
         router.replace('/login');
       }
     }
-  }, [loading, isAuthenticated, user]);
+  }, [loading, isAuthenticated, user, router]);
 
   return (
     <View style={styles.container}>
