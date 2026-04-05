@@ -98,6 +98,22 @@ export default function HomeScreen() {
 
             <TouchableOpacity 
               style={styles.actionCard}
+              onPress={() => router.push('/admin/manage-uniforms')}
+            >
+              <Ionicons name="shirt" size={32} color="#5B4FCE" />
+              <Text style={styles.actionText}>Manage Uniforms</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.actionCard}
+              onPress={() => router.push('/admin/manage-members')}
+            >
+              <Ionicons name="people" size={32} color="#5B4FCE" />
+              <Text style={styles.actionText}>Manage Members</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.actionCard}
               onPress={() => router.push('/admin/assign-tags')}
             >
               <Ionicons name="pricetag" size={32} color="#5B4FCE" />

@@ -751,6 +751,113 @@ async def assign_tag(
     )
     return {"message": "Tag assigned"}
 
+@api_router.delete("/admin/delete-user/{user_id}")
+async def delete_user(
+    user_id: str,
+    admin: User = Depends(require_admin)
+):
+    """Delete a user (admin only)"""
+    # Prevent admin from deleting themselves
+    if user_id == admin.user_id:
+        raise HTTPException(status_code=400, detail="Cannot delete your own account")
+    
+    # Delete user
+    result = await db.users.delete_one({"user_id": user_id})
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Clean up related data
+    await db.user_sessions.delete_many({"user_id": user_id})
+    await db.attendance.delete_many({"user_id": user_id})
+    await db.fees.delete_many({"user_id": user_id})
+    await db.user_uniforms.delete_many({"user_id": user_id})
+    
+    return {"message": "User deleted successfully"}
+
+@api_router.get("/admin/user-profile/{user_id}")
+async def get_user_profile(
+    user_id: str,
+    admin: User = Depends(require_admin)
+):
+    """Get detailed user profile (admin only)"""
+    user_doc = await db.users.find_one(
+        {"user_id": user_id},
+        {"_id": 0, "password_hash": 0}
+    )
+    
+    if not user_doc:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Get user's attendance stats
+    practice_attendance = await db.attendance.find({
+        "user_id": user_id,
+        "attendance_type": "practice"
+    }, {"_id": 0}).to_list(1000)
+    
+    khidmat_attendance = await db.attendance.find({
+        "user_id": user_id,
+        "attendance_type": "khidmat"
+    }, {"_id": 0}).to_list(1000)
+    
+    # Get user's fees
+    fees = await db.fees.find(
+        {"user_id": user_id},
+        {"_id": 0}
+    ).to_list(1000)
+    
+    # Get user's uniforms
+    user_uniforms = await db.user_uniforms.find(
+        {"user_id": user_id},
+        {"_id": 0}
+    ).to_list(1000)
+    
+    uniforms = []
+    for uu in user_uniforms:
+        uniform = await db.uniforms.find_one(
+            {"uniform_id": uu["uniform_id"]},
+            {"_id": 0}
+        )
+        if uniform:
+            uniforms.append({
+                "user_uniform_id": uu["user_uniform_id"],
+                "uniform": uniform,
+                "assigned_date": uu["assigned_date"]
+            })
+    
+    practice_total = len(practice_attendance)
+    practice_present = len([r for r in practice_attendance if r["status"] == "present"])
+    practice_percentage = (practice_present / practice_total * 100) if practice_total > 0 else 0
+    
+    khidmat_total = len(khidmat_attendance)
+    khidmat_present = len([r for r in khidmat_attendance if r["status"] == "present"])
+    khidmat_percentage = (khidmat_present / khidmat_total * 100) if khidmat_total > 0 else 0
+    
+    total_due = sum(f["amount"] for f in fees if f["status"] == "due")
+    total_paid = sum(f["amount"] for f in fees if f["status"] == "paid")
+    
+    return {
+        "user": user_doc,
+        "attendance": {
+            "practice": {
+                "total": practice_total,
+                "present": practice_present,
+                "percentage": round(practice_percentage, 2)
+            },
+            "khidmat": {
+                "total": khidmat_total,
+                "present": khidmat_present,
+                "percentage": round(khidmat_percentage, 2)
+            }
+        },
+        "fees": {
+            "records": fees,
+            "total_due": total_due,
+            "total_paid": total_paid
+        },
+        "uniforms": uniforms
+    }
+
 # ============= STARTUP - CREATE ADMIN =============
 
 @app.on_event("startup")
