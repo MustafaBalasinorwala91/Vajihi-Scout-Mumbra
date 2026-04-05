@@ -153,6 +153,14 @@ class AssignTagRequest(BaseModel):
     user_id: str
     tag: str
 
+class ChangePasswordRequest(BaseModel):
+    old_password: str
+    new_password: str
+
+class ResetPasswordRequest(BaseModel):
+    user_id: str
+    new_password: str
+
 # ============= AUTHENTICATION HELPERS =============
 
 def hash_password(password: str) -> str:
@@ -312,6 +320,35 @@ async def logout(response: Response, request: Request, session_token: Optional[s
     
     return {"message": "Logged out successfully"}
 
+@api_router.post("/auth/change-password")
+async def change_password(
+    password_data: ChangePasswordRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """Change password for logged-in user"""
+    # Get user with password hash
+    user_doc = await db.users.find_one({"user_id": current_user.user_id})
+    
+    if not user_doc:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Verify old password
+    if not verify_password(password_data.old_password, user_doc["password_hash"]):
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+    
+    # Validate new password
+    if len(password_data.new_password) < 6:
+        raise HTTPException(status_code=400, detail="New password must be at least 6 characters")
+    
+    # Hash and update new password
+    new_password_hash = hash_password(password_data.new_password)
+    await db.users.update_one(
+        {"user_id": current_user.user_id},
+        {"$set": {"password_hash": new_password_hash}}
+    )
+    
+    return {"message": "Password changed successfully"}
+
 # ============= USER/PROFILE ENDPOINTS =============
 
 @api_router.put("/profile")
@@ -438,6 +475,19 @@ async def get_user_attendance(
         "percentage": round(percentage, 2)
     }
 
+@api_router.delete("/attendance/{attendance_id}")
+async def delete_attendance(
+    attendance_id: str,
+    admin: User = Depends(require_admin)
+):
+    """Delete attendance record (admin only)"""
+    result = await db.attendance.delete_one({"attendance_id": attendance_id})
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Attendance record not found")
+    
+    return {"message": "Attendance record deleted successfully"}
+
 # ============= FEES ENDPOINTS =============
 
 @api_router.post("/fees")
@@ -509,6 +559,19 @@ async def get_all_fees(admin: User = Depends(require_admin)):
     """Get all fee records (admin only)"""
     fees = await db.fees.find({}, {"_id": 0}).sort("month", -1).to_list(1000)
     return fees
+
+@api_router.delete("/fees/{fee_id}")
+async def delete_fee(
+    fee_id: str,
+    admin: User = Depends(require_admin)
+):
+    """Delete fee record (admin only)"""
+    result = await db.fees.delete_one({"fee_id": fee_id})
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Fee record not found")
+    
+    return {"message": "Fee record deleted successfully"}
 
 @api_router.post("/admin/generate-fees/{month}")
 async def generate_monthly_fees(
@@ -857,6 +920,33 @@ async def get_user_profile(
         },
         "uniforms": uniforms
     }
+
+@api_router.post("/admin/reset-password")
+async def admin_reset_password(
+    reset_data: ResetPasswordRequest,
+    admin: User = Depends(require_admin)
+):
+    """Admin reset member password (admin only)"""
+    # Validate new password
+    if len(reset_data.new_password) < 6:
+        raise HTTPException(status_code=400, detail="New password must be at least 6 characters")
+    
+    # Get user
+    user_doc = await db.users.find_one({"user_id": reset_data.user_id})
+    if not user_doc:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Hash and update new password
+    new_password_hash = hash_password(reset_data.new_password)
+    await db.users.update_one(
+        {"user_id": reset_data.user_id},
+        {"$set": {"password_hash": new_password_hash}}
+    )
+    
+    # Invalidate all sessions for this user
+    await db.user_sessions.delete_many({"user_id": reset_data.user_id})
+    
+    return {"message": "Password reset successfully"}
 
 # ============= STARTUP - CREATE ADMIN =============
 

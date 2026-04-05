@@ -27,6 +27,15 @@ export default function ProfileScreen() {
   });
   const [uniformSize, setUniformSize] = useState(user?.uniform_size || '');
   const [editingUniform, setEditingUniform] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordData, setPasswordData] = useState({
+    oldPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
+  const [showOldPassword, setShowOldPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
 
   const uniformSizes = ['S', 'M', 'L', 'XL', 'XXL'];
 
