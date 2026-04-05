@@ -10,7 +10,6 @@ from pydantic import BaseModel, Field
 from typing import List, Optional
 import uuid
 from datetime import datetime, timezone, timedelta
-import httpx
 import bcrypt
 
 ROOT_DIR = Path(__file__).parent
@@ -38,13 +37,12 @@ logger = logging.getLogger(__name__)
 
 class User(BaseModel):
     user_id: str
-    email: str
+    username: str
     name: str
-    picture: Optional[str] = None
     phone: Optional[str] = None
+    picture: Optional[str] = None
     role: str = "member"  # member or admin
-    tag: Optional[str] = None  # captain, vice_captain, band_in_charge, instrument_in_charge, trainer
-    uniform_size: Optional[str] = None  # S, M, L, XL, XXL
+    tag: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class UserSession(BaseModel):
@@ -52,9 +50,6 @@ class UserSession(BaseModel):
     session_token: str
     expires_at: datetime
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-
-class SessionDataRequest(BaseModel):
-    session_id: str
 
 class AttendanceRecord(BaseModel):
     attendance_id: str = Field(default_factory=lambda: f"att_{uuid.uuid4().hex[:12]}")
@@ -80,19 +75,42 @@ class InventoryItem(BaseModel):
     name: str
     category: str = "musical_instrument"
     quantity: int
-    condition: Optional[str] = None  # good, needs_repair, damaged
+    condition: Optional[str] = None
     added_by: str
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
+class UniformItem(BaseModel):
+    uniform_id: str = Field(default_factory=lambda: f"uniform_{uuid.uuid4().hex[:12]}")
+    name: str  # e.g., "Scout Shirt", "Band Jacket"
+    size: str  # S, M, L, XL, XXL
+    quantity: int
+    added_by: str
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class UserUniform(BaseModel):
+    user_uniform_id: str = Field(default_factory=lambda: f"uu_{uuid.uuid4().hex[:12]}")
+    user_id: str
+    uniform_id: str
+    assigned_date: str
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
 # Request/Response Models
+class SignupRequest(BaseModel):
+    username: str
+    password: str
+    name: str
+    phone: Optional[str] = None
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
 class UpdateProfileRequest(BaseModel):
     name: Optional[str] = None
     phone: Optional[str] = None
     picture: Optional[str] = None
-
-class UpdateUniformRequest(BaseModel):
-    uniform_size: str
 
 class MarkAttendanceRequest(BaseModel):
     user_id: str
@@ -117,20 +135,39 @@ class UpdateInventoryRequest(BaseModel):
     quantity: Optional[int] = None
     condition: Optional[str] = None
 
+class CreateUniformRequest(BaseModel):
+    name: str
+    size: str
+    quantity: int
+
+class UpdateUniformRequest(BaseModel):
+    name: Optional[str] = None
+    size: Optional[str] = None
+    quantity: Optional[int] = None
+
+class AssignUniformRequest(BaseModel):
+    user_id: str
+    uniform_id: str
+
 class AssignTagRequest(BaseModel):
     user_id: str
     tag: str
 
 # ============= AUTHENTICATION HELPERS =============
 
+def hash_password(password: str) -> str:
+    """Hash a password using bcrypt"""
+    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+def verify_password(password: str, hashed: str) -> bool:
+    """Verify a password against a hash"""
+    return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
+
 async def get_current_user(
     request: Request,
     session_token: Optional[str] = Cookie(None)
 ) -> User:
-    """
-    Get current authenticated user from session_token cookie or Authorization header.
-    REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
-    """
+    """Get current authenticated user from session_token cookie or Authorization header"""
     token = session_token
     
     # Fallback to Authorization header if cookie not present
@@ -164,7 +201,7 @@ async def get_current_user(
     # Get user
     user_doc = await db.users.find_one(
         {"user_id": session_doc["user_id"]},
-        {"_id": 0}
+        {"_id": 0, "password_hash": 0}
     )
     
     if not user_doc:
@@ -180,88 +217,76 @@ async def require_admin(current_user: User = Depends(get_current_user)) -> User:
 
 # ============= AUTH ENDPOINTS =============
 
-@api_router.post("/auth/session")
-async def create_session(request: SessionDataRequest, response: Response):
-    """
-    Exchange session_id for session_token and user data.
-    REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
-    """
-    try:
-        # Call Emergent Auth API
-        async with httpx.AsyncClient() as client:
-            emergent_response = await client.get(
-                "https://demobackend.emergentagent.com/auth/v1/env/oauth/session-data",
-                headers={"X-Session-ID": request.session_id}
-            )
-            emergent_response.raise_for_status()
-            session_data = emergent_response.json()
-        
-        email = session_data["email"]
-        name = session_data["name"]
-        picture = session_data.get("picture")
-        
-        # Check if user exists
-        user_doc = await db.users.find_one({"email": email}, {"_id": 0})
-        
-        if user_doc:
-            # Update existing user
-            await db.users.update_one(
-                {"email": email},
-                {"$set": {
-                    "name": name,
-                    "picture": picture
-                }}
-            )
-            user_id = user_doc["user_id"]
-            role = user_doc.get("role", "member")
-        else:
-            # Create new user
-            user_id = f"user_{uuid.uuid4().hex[:12]}"
-            # Check if this is the admin email
-            role = "admin" if email == "mansoorkholkawala@gmail.com" else "member"
-            
-            new_user = User(
-                user_id=user_id,
-                email=email,
-                name=name,
-                picture=picture,
-                role=role
-            )
-            await db.users.insert_one(new_user.dict())
-        
-        # Create session
-        session_token = f"session_{uuid.uuid4().hex}"
-        expires_at = datetime.now(timezone.utc) + timedelta(days=7)
-        
-        new_session = UserSession(
-            user_id=user_id,
-            session_token=session_token,
-            expires_at=expires_at
-        )
-        await db.user_sessions.insert_one(new_session.dict())
-        
-        # Set cookie
-        response.set_cookie(
-            key="session_token",
-            value=session_token,
-            httponly=True,
-            secure=True,
-            samesite="none",
-            max_age=7 * 24 * 60 * 60,
-            path="/"
-        )
-        
-        # Get updated user
-        user_doc = await db.users.find_one({"user_id": user_id}, {"_id": 0})
-        
-        return {
-            "user": user_doc,
-            "session_token": session_token
-        }
-        
-    except httpx.HTTPError as e:
-        logger.error(f"Failed to fetch session data: {e}")
-        raise HTTPException(status_code=401, detail="Invalid session_id")
+@api_router.post("/auth/signup")
+async def signup(signup_data: SignupRequest):
+    """Register a new user"""
+    # Check if username already exists
+    existing_user = await db.users.find_one({"username": signup_data.username})
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Username already exists")
+    
+    # Create new user
+    user_id = f"user_{uuid.uuid4().hex[:12]}"
+    password_hash = hash_password(signup_data.password)
+    
+    new_user = {
+        "user_id": user_id,
+        "username": signup_data.username,
+        "password_hash": password_hash,
+        "name": signup_data.name,
+        "phone": signup_data.phone,
+        "picture": None,
+        "role": "member",
+        "tag": None,
+        "created_at": datetime.now(timezone.utc)
+    }
+    
+    await db.users.insert_one(new_user)
+    
+    return {"message": "User created successfully", "user_id": user_id}
+
+@api_router.post("/auth/login")
+async def login(login_data: LoginRequest, response: Response):
+    """Login with username and password"""
+    # Find user
+    user_doc = await db.users.find_one({"username": login_data.username})
+    
+    if not user_doc:
+        raise HTTPException(status_code=401, detail="Invalid username or password")
+    
+    # Verify password
+    if not verify_password(login_data.password, user_doc["password_hash"]):
+        raise HTTPException(status_code=401, detail="Invalid username or password")
+    
+    # Create session
+    session_token = f"session_{uuid.uuid4().hex}"
+    expires_at = datetime.now(timezone.utc) + timedelta(days=7)
+    
+    new_session = UserSession(
+        user_id=user_doc["user_id"],
+        session_token=session_token,
+        expires_at=expires_at
+    )
+    await db.user_sessions.insert_one(new_session.dict())
+    
+    # Set cookie
+    response.set_cookie(
+        key="session_token",
+        value=session_token,
+        httponly=True,
+        secure=True,
+        samesite="none",
+        max_age=7 * 24 * 60 * 60,
+        path="/"
+    )
+    
+    # Return user data (without password hash)
+    user_data = {k: v for k, v in user_doc.items() if k not in ["_id", "password_hash"]}
+    
+    return {
+        "user": user_data,
+        "session_token": session_token
+    }
 
 @api_router.get("/auth/me")
 async def get_me(current_user: User = Depends(get_current_user)):
@@ -269,12 +294,22 @@ async def get_me(current_user: User = Depends(get_current_user)):
     return current_user
 
 @api_router.post("/auth/logout")
-async def logout(response: Response, session_token: Optional[str] = Cookie(None)):
+async def logout(response: Response, request: Request, session_token: Optional[str] = Cookie(None)):
     """Logout user"""
-    if session_token:
-        await db.user_sessions.delete_one({"session_token": session_token})
+    token = session_token
     
-    response.delete_cookie(key="session_token", path="/")
+    # Also check Authorization header
+    if not token:
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header.replace("Bearer ", "")
+    
+    if token:
+        await db.user_sessions.delete_one({"session_token": token})
+    
+    # Clear cookie
+    response.delete_cookie(key="session_token", path="/", samesite="none")
+    
     return {"message": "Logged out successfully"}
 
 # ============= USER/PROFILE ENDPOINTS =============
@@ -300,27 +335,16 @@ async def update_profile(
         )
     
     # Return updated user
-    user_doc = await db.users.find_one({"user_id": current_user.user_id}, {"_id": 0})
-    return User(**user_doc)
-
-@api_router.put("/profile/uniform")
-async def update_uniform(
-    update_data: UpdateUniformRequest,
-    current_user: User = Depends(get_current_user)
-):
-    """Update uniform size (member can edit)"""
-    await db.users.update_one(
+    user_doc = await db.users.find_one(
         {"user_id": current_user.user_id},
-        {"$set": {"uniform_size": update_data.uniform_size}}
+        {"_id": 0, "password_hash": 0}
     )
-    
-    user_doc = await db.users.find_one({"user_id": current_user.user_id}, {"_id": 0})
     return User(**user_doc)
 
 @api_router.get("/users")
 async def get_all_users(current_user: User = Depends(get_current_user)):
-    """Get all users (for admin to view)"""
-    users = await db.users.find({}, {"_id": 0}).to_list(1000)
+    """Get all users"""
+    users = await db.users.find({}, {"_id": 0, "password_hash": 0}).to_list(1000)
     return users
 
 # ============= ATTENDANCE ENDPOINTS =============
@@ -331,7 +355,6 @@ async def mark_attendance(
     admin: User = Depends(require_admin)
 ):
     """Mark attendance (admin only)"""
-    # Check if attendance already exists for this user, type, and date
     existing = await db.attendance.find_one({
         "user_id": attendance.user_id,
         "attendance_type": attendance.attendance_type,
@@ -339,7 +362,6 @@ async def mark_attendance(
     })
     
     if existing:
-        # Update existing
         await db.attendance.update_one(
             {"attendance_id": existing["attendance_id"]},
             {"$set": {
@@ -349,7 +371,6 @@ async def mark_attendance(
         )
         return {"message": "Attendance updated"}
     else:
-        # Create new
         new_attendance = AttendanceRecord(
             user_id=attendance.user_id,
             attendance_type=attendance.attendance_type,
@@ -366,19 +387,17 @@ async def get_my_attendance(
     month: Optional[str] = None,
     current_user: User = Depends(get_current_user)
 ):
-    """Get user's own attendance for a specific type"""
+    """Get user's own attendance"""
     query = {
         "user_id": current_user.user_id,
         "attendance_type": attendance_type
     }
     
     if month:
-        # Filter by month (YYYY-MM)
         query["date"] = {"$regex": f"^{month}"}
     
     records = await db.attendance.find(query, {"_id": 0}).to_list(1000)
     
-    # Calculate percentage
     total = len(records)
     present = len([r for r in records if r["status"] == "present"])
     percentage = (present / total * 100) if total > 0 else 0
@@ -491,6 +510,39 @@ async def get_all_fees(admin: User = Depends(require_admin)):
     fees = await db.fees.find({}, {"_id": 0}).sort("month", -1).to_list(1000)
     return fees
 
+@api_router.post("/admin/generate-fees/{month}")
+async def generate_monthly_fees(
+    month: str,
+    amount: float,
+    admin: User = Depends(require_admin)
+):
+    """Generate fee records for all members"""
+    users = await db.users.find({"role": "member"}, {"_id": 0}).to_list(1000)
+    
+    created_count = 0
+    for user in users:
+        existing = await db.fees.find_one({
+            "user_id": user["user_id"],
+            "month": month
+        })
+        
+        if not existing:
+            new_fee = FeeRecord(
+                user_id=user["user_id"],
+                month=month,
+                amount=amount,
+                status="due",
+                updated_by=admin.user_id
+            )
+            await db.fees.insert_one(new_fee.dict())
+            created_count += 1
+    
+    return {
+        "message": f"Generated {created_count} fee records for {month}",
+        "total_members": len(users),
+        "created": created_count
+    }
+
 # ============= INVENTORY ENDPOINTS =============
 
 @api_router.post("/inventory")
@@ -546,6 +598,145 @@ async def delete_inventory_item(
     await db.inventory.delete_one({"item_id": item_id})
     return {"message": "Item deleted"}
 
+# ============= UNIFORM ENDPOINTS =============
+
+@api_router.post("/uniforms")
+async def create_uniform_item(
+    uniform_data: CreateUniformRequest,
+    admin: User = Depends(require_admin)
+):
+    """Create uniform item (admin only)"""
+    new_uniform = UniformItem(
+        name=uniform_data.name,
+        size=uniform_data.size,
+        quantity=uniform_data.quantity,
+        added_by=admin.user_id
+    )
+    await db.uniforms.insert_one(new_uniform.dict())
+    return new_uniform
+
+@api_router.get("/uniforms")
+async def get_uniforms(current_user: User = Depends(get_current_user)):
+    """Get all uniform items"""
+    uniforms = await db.uniforms.find({}, {"_id": 0}).to_list(1000)
+    return uniforms
+
+@api_router.put("/uniforms/{uniform_id}")
+async def update_uniform_item(
+    uniform_id: str,
+    update_data: UpdateUniformRequest,
+    admin: User = Depends(require_admin)
+):
+    """Update uniform item (admin only)"""
+    update_dict = {"updated_at": datetime.now(timezone.utc)}
+    
+    if update_data.name:
+        update_dict["name"] = update_data.name
+    if update_data.size:
+        update_dict["size"] = update_data.size
+    if update_data.quantity is not None:
+        update_dict["quantity"] = update_data.quantity
+    
+    await db.uniforms.update_one(
+        {"uniform_id": uniform_id},
+        {"$set": update_dict}
+    )
+    
+    return {"message": "Uniform updated"}
+
+@api_router.delete("/uniforms/{uniform_id}")
+async def delete_uniform_item(
+    uniform_id: str,
+    admin: User = Depends(require_admin)
+):
+    """Delete uniform item (admin only)"""
+    await db.uniforms.delete_one({"uniform_id": uniform_id})
+    await db.user_uniforms.delete_many({"uniform_id": uniform_id})
+    return {"message": "Uniform deleted"}
+
+@api_router.get("/uniforms/my")
+async def get_my_uniforms(current_user: User = Depends(get_current_user)):
+    """Get user's assigned uniforms"""
+    user_uniforms = await db.user_uniforms.find(
+        {"user_id": current_user.user_id},
+        {"_id": 0}
+    ).to_list(1000)
+    
+    # Get full uniform details
+    result = []
+    for uu in user_uniforms:
+        uniform = await db.uniforms.find_one(
+            {"uniform_id": uu["uniform_id"]},
+            {"_id": 0}
+        )
+        if uniform:
+            result.append({
+                "user_uniform_id": uu["user_uniform_id"],
+                "uniform": uniform,
+                "assigned_date": uu["assigned_date"]
+            })
+    
+    return result
+
+@api_router.post("/uniforms/assign")
+async def assign_uniform(
+    assign_data: AssignUniformRequest,
+    admin: User = Depends(require_admin)
+):
+    """Assign uniform to user (admin only)"""
+    # Check if already assigned
+    existing = await db.user_uniforms.find_one({
+        "user_id": assign_data.user_id,
+        "uniform_id": assign_data.uniform_id
+    })
+    
+    if existing:
+        raise HTTPException(status_code=400, detail="Uniform already assigned to this user")
+    
+    new_assignment = UserUniform(
+        user_id=assign_data.user_id,
+        uniform_id=assign_data.uniform_id,
+        assigned_date=datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    )
+    await db.user_uniforms.insert_one(new_assignment.dict())
+    
+    return {"message": "Uniform assigned successfully"}
+
+@api_router.delete("/uniforms/unassign/{user_uniform_id}")
+async def unassign_uniform(
+    user_uniform_id: str,
+    admin: User = Depends(require_admin)
+):
+    """Unassign uniform from user (admin only)"""
+    await db.user_uniforms.delete_one({"user_uniform_id": user_uniform_id})
+    return {"message": "Uniform unassigned"}
+
+@api_router.get("/uniforms/user/{user_id}")
+async def get_user_uniforms(
+    user_id: str,
+    admin: User = Depends(require_admin)
+):
+    """Get user's assigned uniforms (admin only)"""
+    user_uniforms = await db.user_uniforms.find(
+        {"user_id": user_id},
+        {"_id": 0}
+    ).to_list(1000)
+    
+    result = []
+    for uu in user_uniforms:
+        uniform = await db.uniforms.find_one(
+            {"uniform_id": uu["uniform_id"]},
+            {"_id": 0}
+        )
+        if uniform:
+            result.append({
+                "user_uniform_id": uu["user_uniform_id"],
+                "uniform": uniform,
+                "assigned_date": uu["assigned_date"]
+            })
+    
+    return result
+
 # ============= ADMIN - TAG MANAGEMENT =============
 
 @api_router.post("/admin/assign-tag")
@@ -560,55 +751,34 @@ async def assign_tag(
     )
     return {"message": "Tag assigned"}
 
-@api_router.put("/admin/uniform/{user_id}")
-async def admin_update_uniform(
-    user_id: str,
-    update_data: UpdateUniformRequest,
-    admin: User = Depends(require_admin)
-):
-    """Admin update user's uniform size"""
-    await db.users.update_one(
-        {"user_id": user_id},
-        {"$set": {"uniform_size": update_data.uniform_size}}
-    )
-    return {"message": "Uniform size updated"}
+# ============= STARTUP - CREATE ADMIN =============
 
-# ============= ADMIN - BATCH OPERATIONS =============
-
-@api_router.post("/admin/generate-fees/{month}")
-async def generate_monthly_fees(
-    month: str,
-    amount: float,
-    admin: User = Depends(require_admin)
-):
-    """Generate fee records for all members for a specific month"""
-    # Get all non-admin users
-    users = await db.users.find({"role": "member"}, {"_id": 0}).to_list(1000)
+@app.on_event("startup")
+async def create_admin():
+    """Create admin user if not exists"""
+    admin_username = "vajihiadmin@53"
+    admin_password = "vajihiscout53"
     
-    created_count = 0
-    for user in users:
-        # Check if fee already exists
-        existing = await db.fees.find_one({
-            "user_id": user["user_id"],
-            "month": month
-        })
+    existing_admin = await db.users.find_one({"username": admin_username})
+    
+    if not existing_admin:
+        admin_id = f"admin_{uuid.uuid4().hex[:12]}"
+        password_hash = hash_password(admin_password)
         
-        if not existing:
-            new_fee = FeeRecord(
-                user_id=user["user_id"],
-                month=month,
-                amount=amount,
-                status="due",
-                updated_by=admin.user_id
-            )
-            await db.fees.insert_one(new_fee.dict())
-            created_count += 1
-    
-    return {
-        "message": f"Generated {created_count} fee records for {month}",
-        "total_members": len(users),
-        "created": created_count
-    }
+        admin_user = {
+            "user_id": admin_id,
+            "username": admin_username,
+            "password_hash": password_hash,
+            "name": "Vajihi Admin",
+            "phone": None,
+            "picture": None,
+            "role": "admin",
+            "tag": None,
+            "created_at": datetime.now(timezone.utc)
+        }
+        
+        await db.users.insert_one(admin_user)
+        logger.info(f"Admin user created: {admin_username}")
 
 # Include the router in the main app
 app.include_router(api_router)

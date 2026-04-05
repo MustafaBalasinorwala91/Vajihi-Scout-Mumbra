@@ -1,15 +1,13 @@
 import React, { createContext, useState, useContext, useEffect, useCallback, ReactNode } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface User {
   user_id: string;
-  email: string;
+  username: string;
   name: string;
   picture?: string;
   phone?: string;
   role: string;
   tag?: string;
-  uniform_size?: string;
 }
 
 interface AuthContextType {
@@ -62,12 +60,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
       await fetch(`${BACKEND_URL}/api/auth/logout`, {
         method: 'POST',
-        credentials: 'include'
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
       });
       setUser(null);
       setIsAuthenticated(false);
     } catch (error) {
       console.error('Logout failed:', error);
+      setUser(null);
+      setIsAuthenticated(false);
     }
   };
 
