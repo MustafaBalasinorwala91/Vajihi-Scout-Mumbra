@@ -112,6 +112,30 @@ export default function ManageMembersScreen() {
     );
   };
 
+  const assignBadge = async (userId: string, badge: string) => {
+    try {
+      const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
+      const response = await fetch(`${BACKEND_URL}/api/admin/assign-badge`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ user_id: userId, badge }),
+      });
+
+      if (response.ok) {
+        Alert.alert('Success', `${badge.charAt(0).toUpperCase() + badge.slice(1)} badge assigned!`);
+        fetchUsers();
+      } else {
+        Alert.alert('Error', 'Failed to assign badge');
+      }
+    } catch (error) {
+      console.error('Failed to assign badge:', error);
+      Alert.alert('Error', 'Failed to assign badge');
+    }
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -151,6 +175,23 @@ export default function ManageMembersScreen() {
                 onPress={() => viewProfile(user)}
               >
                 <Ionicons name="eye" size={20} color="#5B4FCE" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={() => {
+                  Alert.alert(
+                    'Assign Badge',
+                    `Choose appreciation badge for ${user.name}`,
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      { text: '🥉 Bronze', onPress: () => assignBadge(user.user_id, 'bronze') },
+                      { text: '🥈 Silver', onPress: () => assignBadge(user.user_id, 'silver') },
+                      { text: '🥇 Gold', onPress: () => assignBadge(user.user_id, 'gold') },
+                    ]
+                  );
+                }}
+              >
+                <Ionicons name="medal" size={20} color="#FFD700" />
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.actionButton}
