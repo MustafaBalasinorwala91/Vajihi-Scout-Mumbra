@@ -42,7 +42,8 @@ class User(BaseModel):
     phone: Optional[str] = None
     picture: Optional[str] = None
     role: str = "member"  # member or admin
-    tag: Optional[str] = None
+    tag: Optional[str] = None  # captain, vice_captain, band_in_charge, instrument_in_charge, trainer
+    badge: Optional[str] = None  # bronze, silver, gold
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class UserSession(BaseModel):
@@ -160,9 +161,18 @@ class AssignTagRequest(BaseModel):
     user_id: str
     tag: str
 
+class AssignBadgeRequest(BaseModel):
+    user_id: str
+    badge: str  # bronze, silver, gold
+
 class ChangePasswordRequest(BaseModel):
     old_password: str
     new_password: str
+
+class SimpleResetPasswordRequest(BaseModel):
+    username: str
+    new_password: str
+    confirm_password: str
 
 class ResetPasswordRequest(BaseModel):
     user_id: str
@@ -363,7 +373,36 @@ async def change_password(
     
     return {"message": "Password changed successfully"}
 
-@api_router.post("/auth/forgot-password")
+@api_router.post("/auth/simple-reset-password")
+async def simple_reset_password(reset_data: SimpleResetPasswordRequest):
+    """Simple password reset - just username and new password"""
+    # Find user
+    user_doc = await db.users.find_one({"username": reset_data.username})
+    
+    if not user_doc:
+        raise HTTPException(status_code=404, detail="Username not found")
+    
+    # Validate passwords match
+    if reset_data.new_password != reset_data.confirm_password:
+        raise HTTPException(status_code=400, detail="Passwords do not match")
+    
+    # Validate new password
+    if len(reset_data.new_password) < 6:
+        raise HTTPException(status_code=400, detail="New password must be at least 6 characters")
+    
+    # Hash and update new password
+    new_password_hash = hash_password(reset_data.new_password)
+    await db.users.update_one(
+        {"user_id": user_doc["user_id"]},
+        {"$set": {"password_hash": new_password_hash}}
+    )
+    
+    # Invalidate all sessions for this user
+    await db.user_sessions.delete_many({"user_id": user_doc["user_id"]})
+    
+    return {"message": "Password reset successfully. Please login with your new password"}
+
+@api_router.get("/auth/forgot-password")
 async def forgot_password(forgot_data: ForgotPasswordRequest):
     """Reset password using security answer"""
     # Find user
@@ -880,6 +919,18 @@ async def assign_tag(
         {"$set": {"tag": tag_data.tag}}
     )
     return {"message": "Tag assigned"}
+
+@api_router.post("/admin/assign-badge")
+async def assign_badge(
+    badge_data: AssignBadgeRequest,
+    admin: User = Depends(require_admin)
+):
+    """Assign badge to user (admin only)"""
+    await db.users.update_one(
+        {"user_id": badge_data.user_id},
+        {"$set": {"badge": badge_data.badge}}
+    )
+    return {"message": "Badge assigned successfully"}
 
 @api_router.delete("/admin/delete-user/{user_id}")
 async def delete_user(

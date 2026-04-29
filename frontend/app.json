@@ -49,7 +49,8 @@
           "photosPermission": "Access photos for profile picture",
           "cameraPermission": "Take photos for profile picture"
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true
