@@ -170,37 +170,63 @@ export default function MarkAttendanceScreen() {
       <ScrollView style={styles.scrollView}>
         {users.map((user) => (
           <View key={user.user_id} style={styles.memberCard}>
-            <Text style={styles.memberName}>{user.name}</Text>
-            <View style={styles.attendanceButtons}>
-              <TouchableOpacity
-                style={[
-                  styles.statusButton,
-                  styles.presentButton,
-                  attendanceMap[user.user_id] === 'present' && styles.statusButtonActive,
-                ]}
-                onPress={() => toggleAttendance(user.user_id, 'present')}
-              >
-                <Ionicons
-                  name="checkmark-circle"
-                  size={24}
-                  color={attendanceMap[user.user_id] === 'present' ? '#fff' : '#4CAF50'}
-                />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.statusButton,
-                  styles.absentButton,
-                  attendanceMap[user.user_id] === 'absent' && styles.statusButtonActive,
-                ]}
-                onPress={() => toggleAttendance(user.user_id, 'absent')}
-              >
-                <Ionicons
-                  name="close-circle"
-                  size={24}
-                  color={attendanceMap[user.user_id] === 'absent' ? '#fff' : '#F44336'}
-                />
-              </TouchableOpacity>
+            <View style={styles.memberInfo}>
+              <Text style={styles.memberName}>{user.name}</Text>
+              <View style={styles.attendanceButtons}>
+                <TouchableOpacity
+                  style={[
+                    styles.statusButton,
+                    styles.presentButton,
+                    attendanceMap[user.user_id] === 'present' && styles.statusButtonActive,
+                  ]}
+                  onPress={() => toggleAttendance(user.user_id, 'present')}
+                >
+                  <Ionicons
+                    name="checkmark-circle"
+                    size={24}
+                    color={attendanceMap[user.user_id] === 'present' ? '#fff' : '#4CAF50'}
+                  />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.statusButton,
+                    styles.absentButton,
+                    attendanceMap[user.user_id] === 'absent' && styles.statusButtonActive,
+                  ]}
+                  onPress={() => toggleAttendance(user.user_id, 'absent')}
+                >
+                  <Ionicons
+                    name="close-circle"
+                    size={24}
+                    color={attendanceMap[user.user_id] === 'absent' ? '#fff' : '#F44336'}
+                  />
+                </TouchableOpacity>
+              </View>
             </View>
+            <TouchableOpacity
+              style={styles.historyButton}
+              onPress={() => {
+                Alert.alert(
+                  'View History',
+                  'View and manage attendance history for ' + user.name,
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                      text: 'View',
+                      onPress: () => {
+                        // Navigate to user attendance history
+                        router.push({
+                          pathname: '/admin/attendance-history',
+                          params: { userId: user.user_id, userName: user.name, type: activeTab }
+                        });
+                      },
+                    },
+                  ]
+                );
+              }}
+            >
+              <Ionicons name="time-outline" size={20} color="#5B4FCE" />
+            </TouchableOpacity>
           </View>
         ))}
       </ScrollView>

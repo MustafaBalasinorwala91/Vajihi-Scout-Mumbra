@@ -162,6 +162,39 @@ export default function ManageFeesScreen() {
     setModalVisible(true);
   };
 
+  const handleDeleteFee = async (feeId: string) => {
+    Alert.alert(
+      'Delete Fee',
+      'Are you sure you want to delete this fee record?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
+              const response = await fetch(`${BACKEND_URL}/api/fees/${feeId}`, {
+                method: 'DELETE',
+                credentials: 'include',
+              });
+
+              if (response.ok) {
+                Alert.alert('Success', 'Fee record deleted');
+                setModalVisible(false);
+              } else {
+                Alert.alert('Error', 'Failed to delete fee');
+              }
+            } catch (error) {
+              console.error('Delete error:', error);
+              Alert.alert('Error', 'Failed to delete fee');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
