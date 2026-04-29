@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { format } from 'date-fns';
+import { useRouter } from 'expo-router';
 
 interface User {
   user_id: string;
@@ -21,6 +22,7 @@ interface User {
 type AttendanceType = 'practice' | 'khidmat';
 
 export default function MarkAttendanceScreen() {
+  const router = useRouter();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<AttendanceType>('practice');
@@ -396,6 +398,16 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#fff',
+    marginLeft: 8,
+  },
+  memberInfo: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  historyButton: {
+    padding: 8,
     marginLeft: 8,
   },
 });
