@@ -1,403 +1,737 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { useAuth } from '../../contexts/AuthContext';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, parseISO } from 'date-fns';
+import axios from 'axios';
+import { useEffect, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+} from 'react-native';
 
-type AttendanceType = 'practice' | 'khidmat';
+import { LinearGradient } from 'expo-linear-gradient';
 
-interface AttendanceRecord {
-  attendance_id: string;
-  user_id: string;
-  attendance_type: string;
-  date: string;
-  status: string;
-  marked_by: string;
-}
+import { Ionicons } from '@expo/vector-icons';
 
-interface AttendanceStats {
-  records: AttendanceRecord[];
-  total: number;
-  present: number;
-  percentage: number;
-}
+import { useRouter } from 'expo-router';
+import NotificationBell from '../../components/common/NotificationBell';
+import AttendanceTab from '../../components/attendance/AttendanceTab';
+import AttendanceCard from '../../components/attendance/AttendanceCard';
+import CalendarDay from '../../components/attendance/CalendarDay';
+import ReminderCard from '../../components/attendance/ReminderCard';
 
 export default function AttendanceScreen() {
-  const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<AttendanceType>('practice');
-  const [viewMode, setViewMode] = useState<'weekly' | 'monthly'>('monthly');
-  const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
-  const [attendanceData, setAttendanceData] = useState<AttendanceStats | null>(null);
-  const [loading, setLoading] = useState(false);
 
+  const router = useRouter();
+
+  const [attendanceType, setAttendanceType] =
+    useState('practice');
+
+  const [selectedDate, setSelectedDate] =
+    useState(
+      new Date().toISOString().split('T')[0]
+    );
+  const [markedDates, setMarkedDates] = useState<any[]>([]);
   useEffect(() => {
-    fetchAttendance();
-  }, [activeTab, selectedMonth]);
 
-  const fetchAttendance = async () => {
-    setLoading(true);
+    loadAttendanceDates();
+
+    loadAttendanceStats();
+
+  }, [attendanceType]);
+  const [stats, setStats] = useState({
+    total: 0,
+    present: 0,
+    absent: 0,
+    percentage: 0,
+  });
+
+  const loadAttendanceDates = async () => {
+
     try {
-      const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
-      const response = await fetch(
-        `${BACKEND_URL}/api/attendance/my/${activeTab}?month=${selectedMonth}`,
-        {
-          credentials: 'include',
-        }
+
+      const response = await axios.get(
+        `http://192.168.0.110:8001/api/attendance/dates/${attendanceType.toLowerCase()}`
       );
 
-      if (response.ok) {
-        const data = await response.json();
-        setAttendanceData(data);
-      }
+      setMarkedDates(response.data);
+
     } catch (error) {
-      console.error('Failed to fetch attendance:', error);
-    } finally {
-      setLoading(false);
+
+      console.log('LOAD DATES ERROR:', error);
+
     }
-  };
 
-  const getMonthDays = () => {
-    const start = startOfMonth(parseISO(selectedMonth + '-01'));
-    const end = endOfMonth(parseISO(selectedMonth + '-01'));
-    return eachDayOfInterval({ start, end });
   };
+  const loadAttendanceStats = async () => {
 
-  const getAttendanceStatus = (date: Date) => {
-    const dateStr = format(date, 'yyyy-MM-dd');
-    const record = attendanceData?.records.find((r) => r.date === dateStr);
-    return record?.status || 'unmarked';
-  };
+    try {
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'present':
-        return '#4CAF50';
-      case 'absent':
-        return '#F44336';
-      default:
-        return '#E0E0E0';
+      const response = await axios.get(
+        `http://192.168.0.110:8001/api/attendance/history/${attendanceType}`
+      );
+
+      const history = response.data;
+
+      let total = history.length;
+
+      let present = 0;
+
+      let absent = 0;
+
+      history.forEach((item: any) => {
+
+        present += item.present;
+
+        absent += item.absent;
+
+      });
+
+      const percentage =
+        present + absent > 0
+          ? Math.round(
+            (present / (present + absent)) * 100
+          )
+          : 0;
+
+      setStats({
+        total,
+        present,
+        absent,
+        percentage,
+      });
+
+    } catch (error) {
+
+      console.log(
+        'LOAD STATS ERROR:',
+        error
+      );
+
     }
+
   };
 
-  const renderCalendar = () => {
-    const days = getMonthDays();
-    const weeks: Date[][] = [];
-    let currentWeek: Date[] = [];
+  const [currentDate, setCurrentDate] =
+    useState(new Date());
 
-    days.forEach((day, index) => {
-      currentWeek.push(day);
-      if (currentWeek.length === 7 || index === days.length - 1) {
-        weeks.push([...currentWeek]);
-        currentWeek = [];
-      }
-    });
+  const currentMonth =
+    currentDate.getMonth();
 
-    return (
-      <View style={styles.calendar}>
-        <View style={styles.weekDays}>
-          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-            <Text key={day} style={styles.weekDayText}>
-              {day}
-            </Text>
-          ))}
-        </View>
-        {weeks.map((week, weekIndex) => (
-          <View key={weekIndex} style={styles.week}>
-            {week.map((day, dayIndex) => {
-              const status = getAttendanceStatus(day);
-              return (
-                <View
-                  key={dayIndex}
-                  style={[
-                    styles.day,
-                    { backgroundColor: getStatusColor(status) },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.dayText,
-                      status !== 'unmarked' && styles.dayTextMarked,
-                    ]}
-                  >
-                    {format(day, 'd')}
-                  </Text>
-                </View>
-              );
-            })}
-          </View>
-        ))}
-      </View>
+  const currentYear =
+    currentDate.getFullYear();
+
+  const goToPreviousMonth = () => {
+
+    const newDate = new Date(currentDate);
+
+    newDate.setMonth(
+      currentMonth - 1
     );
+
+    setCurrentDate(newDate);
+  };
+
+  const goToNextMonth = () => {
+
+    const newDate = new Date(currentDate);
+
+    newDate.setMonth(
+      currentMonth + 1
+    );
+
+    setCurrentDate(newDate);
+  };
+
+  const monthName =
+    currentDate.toLocaleString(
+      'default',
+      {
+        month: 'long',
+      }
+    );
+
+  const totalDays = new Date(
+    currentYear,
+    currentMonth + 1,
+    0
+  ).getDate();
+
+  const firstDayOfMonth = new Date(
+    currentYear,
+    currentMonth,
+    1
+  ).getDay();
+
+  const calendarDays = [
+
+    ...Array(firstDayOfMonth).fill(null),
+
+    ...Array.from(
+      { length: totalDays },
+      (_, i) => i + 1
+    ),
+
+  ];
+
+  const handleSelectDay = (day: number) => {
+
+    const formattedDate =
+      `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+    setSelectedDate(formattedDate);
+
   };
 
   return (
-    <ScrollView style={styles.container}>
-      {/* Type Tabs */}
-      <View style={styles.tabContainer}>
-        <TouchableOpacity
-          style={[
-            styles.tab,
-            activeTab === 'practice' && styles.activeTab,
-          ]}
-          onPress={() => setActiveTab('practice')}
+
+    <View style={styles.container}>
+
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{
+          paddingBottom: 140,
+        }}
+      >
+
+        {/* HEADER */}
+        <LinearGradient
+          colors={['#2B145A', '#5B3DF5']}
+          style={styles.header}
         >
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === 'practice' && styles.activeTabText,
-            ]}
+
+          <View style={styles.headerTop}>
+
+            <View>
+
+              <Text style={styles.title}>
+                Attendance
+              </Text>
+
+              <Text style={styles.subtitle}>
+                Track, manage and analyze attendance
+              </Text>
+
+            </View>
+
+            <NotificationBell />
+
+          </View>
+
+          {/* TABS */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.tabsWrapper}
           >
-            Practice
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.tab,
-            activeTab === 'khidmat' && styles.activeTab,
-          ]}
-          onPress={() => setActiveTab('khidmat')}
+
+            <AttendanceTab
+              label="Practice"
+              icon="people"
+              active={attendanceType === 'practice'}
+              onPress={() =>
+                setAttendanceType('practice')
+              }
+            />
+
+            <AttendanceTab
+              label="Khidmat"
+              icon="heart"
+              active={attendanceType === 'khidmat'}
+              onPress={() =>
+                setAttendanceType('khidmat')
+              }
+            />
+
+            <AttendanceTab
+              label="Duties"
+              icon="clipboard"
+              active={attendanceType === 'duties'}
+              onPress={() =>
+                setAttendanceType('duties')
+              }
+            />
+
+          </ScrollView>
+
+        </LinearGradient>
+
+        {/* MONTH */}
+        {/* MONTH */}
+        <View style={styles.monthWrapper}>
+
+          <View style={styles.monthSelector}>
+
+            <TouchableOpacity
+              onPress={goToPreviousMonth}
+              style={styles.monthArrow}
+            >
+
+              <Ionicons
+                name="chevron-back"
+                size={22}
+                color="#fff"
+              />
+
+            </TouchableOpacity>
+
+            <View style={styles.monthCenter}>
+
+              <Ionicons
+                name="calendar-outline"
+                size={24}
+                color="#5B3DF5"
+              />
+
+              <Text style={styles.monthText}>
+                {monthName} {currentYear}
+              </Text>
+
+            </View>
+
+            <TouchableOpacity
+              onPress={goToNextMonth}
+              style={styles.monthArrow}
+            >
+
+              <Ionicons
+                name="chevron-forward"
+                size={22}
+                color="#fff"
+              />
+
+            </TouchableOpacity>
+
+          </View>
+
+        </View>
+        {/* SUMMARY */}
+        {/* SUMMARY */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.summaryRow}
         >
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === 'khidmat' && styles.activeTabText,
-            ]}
+
+          <AttendanceCard
+            icon="calendar"
+            value={String(stats.total)}
+            label="Total Days"
+            color="#7B61FF"
+          />
+
+          <AttendanceCard
+            icon="checkmark-circle"
+            value={String(stats.present)}
+            label="Present"
+            color="#37C978"
+          />
+
+          <AttendanceCard
+            icon="close-circle"
+            value={String(stats.absent)}
+            label="Absent"
+            color="#FF5B5B"
+          />
+
+          <AttendanceCard
+            icon="pie-chart"
+            value={`${stats.percentage}%`}
+            label="Percentage"
+            color="#7B61FF"
+          />
+
+        </ScrollView>
+
+        {/* CALENDAR */}
+        <View style={styles.calendarContainer}>
+
+          <View style={styles.weekRow}>
+            {[
+              'Sun',
+              'Mon',
+              'Tue',
+              'Wed',
+              'Thu',
+              'Fri',
+              'Sat',
+            ].map((day) => (
+              <Text
+                style={styles.weekText}
+                key={day}
+              >
+                {day}
+              </Text>
+            ))}
+          </View>
+
+          <View style={styles.calendarGrid}>
+            {calendarDays.map((day, index) => {
+
+              if (day === null) {
+                return (
+                  <View
+                    key={`empty-${index}`}
+                    style={{
+                      width: 44,
+                      height: 44,
+                    }}
+                  />
+                );
+              }
+
+              const formattedDate =
+                `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+              return (
+                <CalendarDay
+                  key={day}
+                  day={day}
+
+                  selected={
+                    selectedDate === formattedDate
+                  }
+
+                  marked={
+                    markedDates.find(
+                      item =>
+                        item.date === formattedDate &&
+                        item.status === 'present'
+                    )
+                  }
+
+                  absent={
+                    markedDates.find(
+                      item =>
+                        item.date === formattedDate &&
+                        item.status === 'absent'
+                    )
+                  }
+
+                  onPress={() => handleSelectDay(day)}
+                />
+              );
+
+            })}
+          </View>
+
+        </View>
+
+        {/* LEGEND */}
+        <View style={styles.legendContainer}>
+
+          <View style={styles.legendItem}>
+            <View
+              style={[
+                styles.dot,
+                {
+                  backgroundColor: '#37C978',
+                },
+              ]}
+            />
+
+            <Text style={styles.legendText}>
+              Present
+            </Text>
+          </View>
+
+          <View style={styles.legendItem}>
+            <View
+              style={[
+                styles.dot,
+                {
+                  backgroundColor: '#FF3B30',
+                },
+              ]}
+            />
+
+            <Text style={styles.legendText}>
+              Absent
+            </Text>
+          </View>
+
+        </View>
+
+        {/* REMINDER */}
+        <ReminderCard />
+
+        {/* VIEW MEMBERS BUTTON */}
+        <TouchableOpacity
+          style={styles.viewButton}
+          onPress={() =>
+            router.push({
+              pathname: '/attendance-members',
+              params: {
+                attendanceType,
+                selectedDate,
+              },
+            })
+          }
+        >
+
+          <LinearGradient
+            colors={['#6C4DFF', '#5B3DF5']}
+            style={styles.viewGradient}
           >
-            Khidmat
-          </Text>
-        </TouchableOpacity>
-      </View>
 
-      {/* Month Selector */}
-      <View style={styles.monthSelector}>
-        <TouchableOpacity
-          onPress={() => {
-            const date = parseISO(selectedMonth + '-01');
-            date.setMonth(date.getMonth() - 1);
-            setSelectedMonth(format(date, 'yyyy-MM'));
-          }}
-        >
-          <Text style={styles.monthButton}>◀</Text>
-        </TouchableOpacity>
-        <Text style={styles.monthText}>
-          {format(parseISO(selectedMonth + '-01'), 'MMMM yyyy')}
-        </Text>
-        <TouchableOpacity
-          onPress={() => {
-            const date = parseISO(selectedMonth + '-01');
-            date.setMonth(date.getMonth() + 1);
-            setSelectedMonth(format(date, 'yyyy-MM'));
-          }}
-        >
-          <Text style={styles.monthButton}>▶</Text>
-        </TouchableOpacity>
-      </View>
+            <Ionicons
+              name="people-outline"
+              size={22}
+              color="#fff"
+            />
 
-      {/* Stats Card */}
-      {attendanceData && (
-        <View style={styles.statsCard}>
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{attendanceData.total}</Text>
-            <Text style={styles.statLabel}>Total Days</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: '#4CAF50' }]}>
-              {attendanceData.present}
+            <Text style={styles.viewText}>
+              View Members
             </Text>
-            <Text style={styles.statLabel}>Present</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Text style={[styles.statValue, { color: '#5B4FCE' }]}>
-              {attendanceData.percentage.toFixed(1)}%
+
+          </LinearGradient>
+
+        </TouchableOpacity>
+
+        <View style={styles.historyButtonsContainer}>
+
+          <TouchableOpacity
+            style={styles.historyButton}
+            onPress={() =>
+              router.push(
+                `/attendance-history?type=${attendanceType}`
+              )
+            }
+          >
+            <Ionicons
+              name="time-outline"
+              size={22}
+              color="#fff"
+            />
+
+            <Text style={styles.historyButtonText}>
+              View {attendanceType} History
             </Text>
-            <Text style={styles.statLabel}>Percentage</Text>
-          </View>
-        </View>
-      )}
+          </TouchableOpacity>
 
-      {/* Calendar */}
-      {loading ? (
-        <ActivityIndicator size="large" color="#5B4FCE" style={styles.loader} />
-      ) : (
-        renderCalendar()
-      )}
+        </View>
 
-      {/* Legend */}
-      <View style={styles.legend}>
-        <View style={styles.legendItem}>
-          <View style={[styles.legendColor, { backgroundColor: '#4CAF50' }]} />
-          <Text style={styles.legendText}>Present</Text>
-        </View>
-        <View style={styles.legendItem}>
-          <View style={[styles.legendColor, { backgroundColor: '#F44336' }]} />
-          <Text style={styles.legendText}>Absent</Text>
-        </View>
-        <View style={styles.legendItem}>
-          <View style={[styles.legendColor, { backgroundColor: '#E0E0E0' }]} />
-          <Text style={styles.legendText}>Not Marked</Text>
-        </View>
-      </View>
-    </ScrollView>
+      </ScrollView >
+
+    </View >
   );
 }
 
 const styles = StyleSheet.create({
+
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#F5F5F5',
   },
-  tabContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#fff',
-    margin: 16,
-    borderRadius: 12,
-    padding: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+
+  header: {
+    paddingTop: 65,
+    paddingHorizontal: 24,
+    paddingBottom: 36,
+    borderBottomLeftRadius: 42,
+    borderBottomRightRadius: 42,
   },
-  tab: {
-    flex: 1,
-    paddingVertical: 12,
-    alignItems: 'center',
-    borderRadius: 8,
-  },
-  activeTab: {
-    backgroundColor: '#5B4FCE',
-  },
-  tabText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#666',
-  },
-  activeTabText: {
-    color: '#fff',
-  },
-  monthSelector: {
+
+  headerTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    marginHorizontal: 16,
-    marginBottom: 16,
-    padding: 16,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    alignItems: 'flex-start',
   },
-  monthButton: {
-    fontSize: 20,
-    color: '#5B4FCE',
-    fontWeight: 'bold',
-  },
-  monthText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1a1a2e',
-  },
-  statsCard: {
-    flexDirection: 'row',
-    backgroundColor: '#fff',
-    marginHorizontal: 16,
-    marginBottom: 16,
-    padding: 20,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  statItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  statValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1a1a2e',
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 4,
-  },
-  calendar: {
-    backgroundColor: '#fff',
-    marginHorizontal: 16,
-    marginBottom: 16,
-    padding: 16,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  weekDays: {
-    flexDirection: 'row',
-    marginBottom: 8,
-  },
-  weekDayText: {
-    flex: 1,
-    textAlign: 'center',
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#666',
-  },
-  week: {
-    flexDirection: 'row',
-    marginBottom: 4,
-  },
-  day: {
-    flex: 1,
-    aspectRatio: 1,
-    margin: 2,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  dayText: {
-    fontSize: 14,
-    color: '#666',
-  },
-  dayTextMarked: {
+
+  title: {
+    fontSize: 32,
+    fontWeight: '800',
     color: '#fff',
-    fontWeight: 'bold',
   },
-  legend: {
+
+  subtitle: {
+    marginTop: 8,
+    fontSize: 16,
+    color: 'rgba(255,255,255,0.82)',
+  },
+
+  tabsWrapper: {
+    marginTop: 28,
+    paddingBottom: 4,
+  },
+
+  monthWrapper: {
+    marginTop: -22,
+    paddingHorizontal: 18,
+    zIndex: 20,
+  },
+
+  monthSelector: {
+
+    backgroundColor: '#fff',
+
+    height: 72,
+
+    borderRadius: 24,
+
+    flexDirection: 'row',
+
+    alignItems: 'center',
+
+    justifyContent: 'space-between',
+
+    paddingHorizontal: 18,
+
+    shadowColor: '#000',
+
+    shadowOpacity: 0.05,
+
+    shadowRadius: 10,
+
+    elevation: 4,
+  },
+  monthCenter: {
+
+    flexDirection: 'row',
+
+    alignItems: 'center',
+
+    gap: 10,
+
+    flex: 1,
+
+    justifyContent: 'center',
+  },
+
+  monthArrow: {
+
+    width: 44,
+
+    height: 44,
+
+    borderRadius: 16,
+
+    backgroundColor: '#5B3DF5',
+
+    justifyContent: 'center',
+
+    alignItems: 'center',
+  },
+
+  monthText: {
+
+    fontSize: 20,
+
+    fontWeight: '800',
+
+    color: '#16162E',
+  },
+
+  summaryRow: {
+    paddingHorizontal: 18,
+    marginTop: 20,
+    paddingBottom: 4,
+  },
+  calendarContainer: {
+    backgroundColor: '#fff',
+    marginTop: 24,
+    marginHorizontal: 18,
+    borderRadius: 34,
+    paddingVertical: 24,
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+  },
+
+  calendarGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 24,
+    gap: 8,
+  },
+
+  weekRow: {
+    flexDirection: 'row',
+    flexWrap: 'nowrap',
+    gap: 8,
+    marginBottom: 18,
+  },
+
+  weekText: {
+    width: 44,
+    textAlign: 'center',
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#555',
+  },
+
+  legendContainer: {
+    backgroundColor: '#fff',
+    marginHorizontal: 18,
+    marginTop: 20,
+    borderRadius: 22,
+    padding: 20,
     flexDirection: 'row',
     justifyContent: 'space-around',
-    backgroundColor: '#fff',
-    marginHorizontal: 16,
-    marginBottom: 16,
-    padding: 16,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
   },
+
   legendItem: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  legendColor: {
-    width: 16,
-    height: 16,
-    borderRadius: 4,
-    marginRight: 6,
+
+  dot: {
+    width: 12,
+    height: 12,
+    borderRadius: 10,
+    marginRight: 8,
   },
+
   legendText: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: 15,
+    color: '#444',
   },
-  loader: {
-    marginVertical: 40,
+
+  viewButton: {
+    marginTop: 30,
+    marginHorizontal: 18,
   },
+
+  viewGradient: {
+    height: 60,
+    borderRadius: 20,
+
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+
+    gap: 10,
+  },
+
+  viewText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  historyButtonsContainer: {
+    marginTop: 20,
+    paddingHorizontal: 20,
+  },
+
+  historyButton: {
+    height: 62,
+    borderRadius: 24,
+
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+
+    backgroundColor: '#5B3DF5',
+
+    shadowColor: '#5B3DF5',
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+
+  historyButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '700',
+    marginLeft: 10,
+  },
+
 });

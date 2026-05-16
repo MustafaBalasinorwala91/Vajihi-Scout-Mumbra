@@ -17,7 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 export default function ForgotPasswordScreen() {
   const router = useRouter();
-  const [username, setUsername] = useState('');
+  const [its_no, setITS_no] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -25,7 +25,7 @@ export default function ForgotPasswordScreen() {
   const [loading, setLoading] = useState(false);
 
   const handleResetPassword = async () => {
-    if (!username || !newPassword || !confirmPassword) {
+    if (!its_no || !newPassword || !confirmPassword) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
@@ -35,8 +35,14 @@ export default function ForgotPasswordScreen() {
       return;
     }
 
-    if (newPassword.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters');
+    const passwordRegex =
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/;
+
+    if (!passwordRegex.test(newPassword)) {
+      Alert.alert(
+        'Weak Password',
+        'Password must contain:\n• 8+ characters\n• Uppercase letter\n• Lowercase letter\n• Number\n• Special character'
+      );
       return;
     }
 
@@ -49,7 +55,7 @@ export default function ForgotPasswordScreen() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          username: username,
+          username: its_no,
           new_password: newPassword,
           confirm_password: confirmPassword,
         }),
@@ -94,10 +100,10 @@ export default function ForgotPasswordScreen() {
             <Ionicons name="person-outline" size={20} color="#666" style={styles.inputIcon} />
             <TextInput
               style={styles.input}
-              placeholder="Username"
+              placeholder="ITS_No"
               placeholderTextColor="#999"
-              value={username}
-              onChangeText={setUsername}
+              value={its_no}
+              onChangeText={setITS_no}
               autoCapitalize="none"
               autoCorrect={false}
             />

@@ -3,11 +3,21 @@ import React, { createContext, useState, useContext, useEffect, useCallback, Rea
 interface User {
   user_id: string;
   username: string;
+  its_no?: string;
   name: string;
-  picture?: string;
   phone?: string;
+  email_id?: string;
+  picture?: string;
   role: string;
   tag?: string;
+
+  age?: string;
+  birth_date?: string;
+  parent_contact?: string;
+  instrument?: string;
+  joining_year?: string;
+
+  uniform_size?: string;
 }
 
 interface AuthContextType {
@@ -29,7 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const checkAuth = useCallback(async () => {
     try {
       const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
-      
+
       const response = await fetch(`${BACKEND_URL}/api/auth/me`, {
         method: 'GET',
         credentials: 'include',

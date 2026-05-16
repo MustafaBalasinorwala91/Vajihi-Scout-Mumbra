@@ -18,18 +18,26 @@ import { Ionicons } from '@expo/vector-icons';
 export default function SignupScreen() {
   const router = useRouter();
   const [formData, setFormData] = useState({
-    username: '',
+    its_no: '',
     password: '',
     confirmPassword: '',
     name: '',
     phone: '',
+    email_id: '',
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleSignup = async () => {
-    if (!formData.username || !formData.password || !formData.name) {
+    if (
+      !formData.its_no ||
+      !formData.password ||
+      !formData.confirmPassword ||
+      !formData.name ||
+      !formData.phone ||
+      !formData.email_id
+    ) {
       Alert.alert('Error', 'Please fill in all required fields');
       return;
     }
@@ -39,41 +47,70 @@ export default function SignupScreen() {
       return;
     }
 
-    if (formData.password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters');
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!emailRegex.test(formData.email_id)) {
+      Alert.alert('Error', 'Please enter a valid email address');
+      return;
+    }
+
+    const passwordRegex =
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/;
+
+    if (!passwordRegex.test(formData.password)) {
+      Alert.alert(
+        'Weak Password',
+        'Password must contain:\n• 8+ characters\n• Uppercase letter\n• Lowercase letter\n• Number\n• Special character'
+      );
       return;
     }
 
     setLoading(true);
+
     try {
       const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
+
       const response = await fetch(`${BACKEND_URL}/api/auth/signup`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          username: formData.username,
+          its_no: formData.its_no,
           password: formData.password,
           name: formData.name,
-          phone: formData.phone || null,
+          phone: formData.phone,
+          email_id: formData.email_id,
         }),
       });
 
       if (response.ok) {
-        Alert.alert('Success', 'Account created successfully! Please login.', [
-          {
-            text: 'OK',
-            onPress: () => router.replace('/login'),
-          },
-        ]);
+        Alert.alert(
+          'Success',
+          'Account created successfully! Please login.',
+          [
+            {
+              text: 'OK',
+              onPress: () => router.replace('/login'),
+            },
+          ]
+        );
       } else {
         const error = await response.json();
-        Alert.alert('Signup Failed', error.detail || 'Failed to create account');
+
+        console.log('Signup Error:', error);
+
+        Alert.alert(
+          'Signup Failed',
+          JSON.stringify(error.detail || error)
+        );
       }
     } catch (error) {
       console.error('Signup error:', error);
-      Alert.alert('Error', 'Failed to create account. Please try again.');
+      Alert.alert(
+        'Error',
+        'Failed to create account. Please try again.'
+      );
     } finally {
       setLoading(false);
     }
@@ -90,19 +127,27 @@ export default function SignupScreen() {
           style={styles.logo}
           resizeMode="contain"
         />
-        
+
         <Text style={styles.title}>Join Vajihi Scout</Text>
         <Text style={styles.subtitle}>Create your account</Text>
 
         <View style={styles.signupCard}>
           <View style={styles.inputContainer}>
-            <Ionicons name="person-outline" size={20} color="#666" style={styles.inputIcon} />
+            <Ionicons
+              name="card-outline"
+              size={20}
+              color="#666"
+              style={styles.inputIcon}
+            />
             <TextInput
               style={styles.input}
-              placeholder="Username *"
+              placeholder="ITS No. *"
               placeholderTextColor="#999"
-              value={formData.username}
-              onChangeText={(text) => setFormData({ ...formData, username: text })}
+              value={formData.its_no}
+              onChangeText={(text) =>
+                setFormData({ ...formData, its_no: text })
+              }
+              keyboardType="numeric"
               autoCapitalize="none"
               autoCorrect={false}
             />
@@ -123,11 +168,32 @@ export default function SignupScreen() {
             <Ionicons name="call-outline" size={20} color="#666" style={styles.inputIcon} />
             <TextInput
               style={styles.input}
-              placeholder="Phone Number (Optional)"
+              placeholder="Phone Number *"
               placeholderTextColor="#999"
               value={formData.phone}
               onChangeText={(text) => setFormData({ ...formData, phone: text })}
               keyboardType="phone-pad"
+            />
+          </View>
+
+          <View style={styles.inputContainer}>
+            <Ionicons
+              name="mail-outline"
+              size={20}
+              color="#666"
+              style={styles.inputIcon}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Email ID *"
+              placeholderTextColor="#999"
+              value={formData.email_id}
+              onChangeText={(text) =>
+                setFormData({ ...formData, email_id: text })
+              }
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
             />
           </View>
 

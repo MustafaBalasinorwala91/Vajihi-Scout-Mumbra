@@ -1,268 +1,231 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
-import { useAuth } from '../../contexts/AuthContext';
-import { Ionicons } from '@expo/vector-icons';
+import React from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+} from 'react-native';
 import { useRouter } from 'expo-router';
+import HeaderSection from '../../components/home/HeaderSection';
+import WelcomeCard from '../../components/home/WelcomeCard';
+import SummaryCard from '../../components/home/SummaryCard';
+import QuickActionCard from '../../components/home/QuickActionCard';
+import NotificationBell from '../../components/common/NotificationBell';
+
+type ActionItem = {
+  id: number;
+  title: string;
+  description: string;
+  icon: string;
+  colors: [string, string];
+};
 
 export default function HomeScreen() {
-  const { user } = useAuth();
   const router = useRouter();
-  const [stats, setStats] = useState({
-    totalMembers: 0,
-    presentToday: 0,
-    pendingFees: 0,
-    inventoryItems: 0,
-  });
+  const summaryData = [
+    {
+      id: 1,
+      icon: 'people',
+      value: '128',
+      title: 'Members',
+      subtitle: 'Total Members',
+      color: '#7B61FF',
+    },
+    {
+      id: 2,
+      icon: 'checkmark-done',
+      value: '96%',
+      title: 'Attendance',
+      subtitle: 'This Month',
+      color: '#37C978',
+    },
+    {
+      id: 3,
+      icon: 'cash',
+      value: '₹45K',
+      title: 'Fees',
+      subtitle: 'Collected',
+      color: '#FFB547',
+    },
+    {
+      id: 4,
+      icon: 'clipboard',
+      value: '24',
+      title: 'Pending',
+      subtitle: 'Tasks',
+      color: '#55B6FF',
+    },
+  ];
 
-  const isAdmin = user?.role === 'admin';
+  const quickActions = [
+    {
+      id: 1,
+      title: 'Mark Attendance',
+      description: 'Mark & manage member attendance',
+      icon: 'checkmark-circle',
+      colors: ['#5B3DF5', '#2B145A'] as [string, string],
+      route: '/attendance',
+    },
 
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return 'Good Morning';
-    if (hour < 18) return 'Good Afternoon';
-    return 'Good Evening';
-  };
+    {
+      id: 2,
+      title: 'Manage Fees',
+      description: 'Collect & track member fees',
+      icon: 'cash',
+      colors: ['#6A3DFF', '#2B145A'] as [string, string],
+      route: '/fees',
+    },
 
-  const getRoleBadgeColor = (role: string) => {
-    return role === 'admin' ? '#FF6B6B' : '#4ECDC4';
-  };
+    {
+      id: 3,
+      title: 'Manage Inventory',
+      description: 'Track & manage inventory items',
+      icon: 'construct',
+      colors: ['#5B3DF5', '#32106E'] as [string, string],
+      route: '/inventory',
+    },
 
-  const getTagBadgeColor = (tag: string) => {
-    const colors: any = {
-      'captain': '#FFD700',
-      'vice_captain': '#C0C0C0',
-      'band_in_charge': '#5B4FCE',
-      'instrument_in_charge': '#FF8C00',
-      'trainer': '#32CD32',
-    };
-    return colors[tag] || '#999';
-  };
+    {
+      id: 4,
+      title: 'Manage Uniforms',
+      description: 'Add, update & track uniforms',
+      icon: 'shirt',
+      colors: ['#B13DFF', '#40107A'] as [string, string],
+      route: '/uniforms',
+    },
+
+    {
+      id: 5,
+      title: 'Manage Members',
+      description: 'Add, update & manage members',
+      icon: 'people',
+      colors: ['#6A3DFF', '#2B145A'] as [string, string],
+      route: '/manage-members',
+    },
+
+    {
+      id: 6,
+      title: 'Assign Tags',
+      description: 'Assign & manage member tags',
+      icon: 'pricetag',
+      colors: ['#8E2BFF', '#2B145A'] as [string, string],
+      route: '/manage-tags',
+    },
+  ];
 
   return (
-    <ScrollView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Image
-          source={require('../../assets/logo/vajihi-scout-logo.png')}
-          style={styles.logo}
-          resizeMode="contain"
-        />
-        <Text style={styles.appTitle}>Vajihi Scout Mumbra</Text>
-        <Text style={styles.appSubtitle}>BGMM - Long Live His Holiness</Text>
-      </View>
+    <View style={styles.container}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{
+          paddingBottom: 140,
+        }}
+      >
+        {/* HEADER */}
+        {/* HEADER */}
+        <View style={styles.headerWrapper}>
 
-      {/* Welcome Card */}
-      <View style={styles.welcomeCard}>
-        <Text style={styles.greeting}>{getGreeting()}!</Text>
-        <Text style={styles.userName}>{user?.name}</Text>
-        <View style={styles.badgeContainer}>
-          <View style={[styles.badge, { backgroundColor: getRoleBadgeColor(user?.role || 'member') }]}>
-            <Text style={styles.badgeText}>{user?.role?.toUpperCase()}</Text>
-          </View>
-          {user?.tag && (
-            <View style={[styles.badge, { backgroundColor: getTagBadgeColor(user.tag) }]}>
-              <Text style={styles.badgeText}>{user.tag.replace('_', ' ').toUpperCase()}</Text>
-            </View>
-          )}
+          <HeaderSection />
+
         </View>
-      </View>
 
-      {/* Quick Actions */}
-      {isAdmin && (
+        {/* WELCOME CARD */}
+        <WelcomeCard />
+
+        {/* SUMMARY SECTION */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Admin Quick Actions</Text>
-          <View style={styles.actionGrid}>
-            <TouchableOpacity 
-              style={styles.actionCard}
-              onPress={() => router.push('/admin/mark-attendance')}
-            >
-              <Ionicons name="checkmark-circle" size={32} color="#5B4FCE" />
-              <Text style={styles.actionText}>Mark Attendance</Text>
-            </TouchableOpacity>
+          <Text style={styles.sectionTitle}>
+            Overview
+          </Text>
 
-            <TouchableOpacity 
-              style={styles.actionCard}
-              onPress={() => router.push('/admin/manage-fees')}
-            >
-              <Ionicons name="cash-outline" size={32} color="#5B4FCE" />
-              <Text style={styles.actionText}>Manage Fees</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={styles.actionCard}
-              onPress={() => router.push('/admin/manage-inventory')}
-            >
-              <Ionicons name="construct" size={32} color="#5B4FCE" />
-              <Text style={styles.actionText}>Manage Inventory</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={styles.actionCard}
-              onPress={() => router.push('/admin/manage-uniforms')}
-            >
-              <Ionicons name="shirt" size={32} color="#5B4FCE" />
-              <Text style={styles.actionText}>Manage Uniforms</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={styles.actionCard}
-              onPress={() => router.push('/admin/manage-members')}
-            >
-              <Ionicons name="people" size={32} color="#5B4FCE" />
-              <Text style={styles.actionText}>Manage Members</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={styles.actionCard}
-              onPress={() => router.push('/admin/assign-tags')}
-            >
-              <Ionicons name="pricetag" size={32} color="#5B4FCE" />
-              <Text style={styles.actionText}>Assign Tags</Text>
-            </TouchableOpacity>
-          </View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{
+              paddingRight: 20,
+            }}
+          >
+            {summaryData.map((item) => (
+              <SummaryCard
+                key={item.id}
+                icon={item.icon}
+                value={item.value}
+                title={item.title}
+                subtitle={item.subtitle}
+                color={item.color}
+              />
+            ))}
+          </ScrollView>
         </View>
-      )}
 
-      {/* Member Quick Links */}
-      {!isAdmin && (
+        {/* QUICK ACTIONS */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Quick Links</Text>
-          <View style={styles.actionGrid}>
-            <TouchableOpacity 
-              style={styles.actionCard}
-              onPress={() => router.push('/(tabs)/attendance')}
-            >
-              <Ionicons name="calendar" size={32} color="#5B4FCE" />
-              <Text style={styles.actionText}>My Attendance</Text>
-            </TouchableOpacity>
+          <View style={styles.quickHeader}>
+            <Text style={styles.sectionTitle}>
+              Quick Actions
+            </Text>
+          </View>
 
-            <TouchableOpacity 
-              style={styles.actionCard}
-              onPress={() => router.push('/(tabs)/fees')}
-            >
-              <Ionicons name="cash" size={32} color="#5B4FCE" />
-              <Text style={styles.actionText}>My Fees</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={styles.actionCard}
-              onPress={() => router.push('/(tabs)/inventory')}
-            >
-              <Ionicons name="musical-notes" size={32} color="#5B4FCE" />
-              <Text style={styles.actionText}>Instruments</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity 
-              style={styles.actionCard}
-              onPress={() => router.push('/(tabs)/profile')}
-            >
-              <Ionicons name="person" size={32} color="#5B4FCE" />
-              <Text style={styles.actionText}>My Profile</Text>
-            </TouchableOpacity>
+          <View style={styles.quickGrid}>
+            {quickActions.map((item) => (
+              <QuickActionCard
+                key={item.id}
+                icon={item.icon}
+                title={item.title}
+                description={item.description}
+                colors={item.colors}
+                onPress={() => {
+                  if (item.route) {
+                    router.push(item.route as any);
+                  }
+                }}
+              />
+            ))}
           </View>
         </View>
-      )}
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#F5F5F5',
   },
-  header: {
-    backgroundColor: '#5B4FCE',
-    padding: 20,
-    alignItems: 'center',
+  headerWrapper: {
+    position: 'relative',
   },
-  logo: {
-    width: 80,
-    height: 80,
-    marginBottom: 8,
-  },
-  appTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#F8D57E',
-    textAlign: 'center',
-  },
-  appSubtitle: {
-    fontSize: 12,
-    color: '#F8D57E',
-    textAlign: 'center',
-    marginTop: 4,
-  },
-  welcomeCard: {
-    backgroundColor: '#fff',
-    margin: 16,
-    padding: 20,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  greeting: {
-    fontSize: 16,
-    color: '#666',
-  },
-  userName: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1a1a2e',
-    marginTop: 4,
-  },
-  badgeContainer: {
-    flexDirection: 'row',
-    marginTop: 12,
-    gap: 8,
-  },
-  badge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-  },
-  badgeText: {
-    color: '#fff',
-    fontSize: 10,
-    fontWeight: 'bold',
-  },
+
   section: {
-    margin: 16,
-    marginTop: 0,
+    marginTop: 26,
+    paddingHorizontal: 18,
   },
+
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1a1a2e',
-    marginBottom: 12,
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#16162E',
+    marginBottom: 20,
   },
-  actionGrid: {
+
+  quickHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 18,
+  },
+
+  viewAll: {
+    color: '#6C4DFF',
+    fontWeight: '700',
+    fontSize: 16,
+  },
+
+  quickGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
-  },
-  actionCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '48%',
-    minHeight: 100,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  actionText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    marginTop: 8,
-    textAlign: 'center',
+    justifyContent: 'space-between',
+    marginTop: 12,
   },
 });

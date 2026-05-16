@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useState } from 'react';
 import {
   View,
@@ -19,14 +20,14 @@ import { Ionicons } from '@expo/vector-icons';
 export default function LoginScreen() {
   const router = useRouter();
   const { setUser, checkAuth } = useAuth();
-  const [username, setUsername] = useState('');
+  const [its_no, setITS_no] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
-    if (!username || !password) {
-      Alert.alert('Error', 'Please enter username and password');
+    if (!its_no || !password) {
+      Alert.alert('Error', 'Please enter ITS_no and password');
       return;
     }
 
@@ -39,11 +40,18 @@ export default function LoginScreen() {
           'Content-Type': 'application/json',
         },
         credentials: 'include',
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({
+          username: its_no,
+          password,
+        }),
       });
 
       if (response.ok) {
         const data = await response.json();
+        await AsyncStorage.setItem(
+          'session_token',
+          data.session_token
+        );
         setUser(data.user);
         router.replace('/(tabs)/home');
       } else {
@@ -69,7 +77,7 @@ export default function LoginScreen() {
           style={styles.logo}
           resizeMode="contain"
         />
-        
+
         <Text style={styles.title}>Vajihi Scout Mumbra</Text>
         <Text style={styles.subtitle}>Scout & Band - BGMM</Text>
         <Text style={styles.tagline}>Long Live His Holiness</Text>
@@ -82,10 +90,10 @@ export default function LoginScreen() {
             <Ionicons name="person-outline" size={20} color="#666" style={styles.inputIcon} />
             <TextInput
               style={styles.input}
-              placeholder="Username"
+              placeholder="ITS_No"
               placeholderTextColor="#999"
-              value={username}
-              onChangeText={setUsername}
+              value={its_no}
+              onChangeText={setITS_no}
               autoCapitalize="none"
               autoCorrect={false}
             />
@@ -245,7 +253,7 @@ const styles = StyleSheet.create({
   forgotPasswordText: {
     fontSize: 14,
     color: '#5B4FCE',
-    textDecoration: 'underline',
+    textDecorationLine: 'underline',
   },
   signupContainer: {
     flexDirection: 'row',
