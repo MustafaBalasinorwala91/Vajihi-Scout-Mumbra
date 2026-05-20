@@ -20,7 +20,7 @@ export default function WelcomeCard() {
                 </Text>
 
                 <Text style={styles.name}>
-                    Vajihi Admin
+                    Member
                 </Text>
 
                 <Text style={styles.description}>
@@ -29,15 +29,15 @@ export default function WelcomeCard() {
 
                 <View style={styles.badge}>
                     <Text style={styles.badgeText}>
-                        ADMIN
+                        BY VAJIHI
                     </Text>
                 </View>
             </View>
 
             <Image
-                source={require('../../assets/images/app-image.png')}
+                source={require('../../assets/images/welcome-image.png')}
                 style={styles.image}
-                resizeMode="contain"
+                resizeMode="cover"
             />
         </LinearGradient>
     );
@@ -45,15 +45,15 @@ export default function WelcomeCard() {
 
 const styles = StyleSheet.create({
     card: {
-        marginHorizontal: 20,
-        marginTop: -60,
-        borderRadius: 30,
-        padding: 24,
+        marginHorizontal: 16,
+        marginTop: -30,
+        borderRadius: 40,
+        padding: 12,
 
         flexDirection: 'row',
-        justifyContent: 'space-between',
         alignItems: 'center',
-
+        justifyContent: 'space-between',
+        gap: 12,
         shadowColor: '#000',
         shadowOffset: {
             width: 0,
@@ -66,6 +66,8 @@ const styles = StyleSheet.create({
 
     left: {
         flex: 1,
+        paddingRight: 120,
+        zIndex: 2,
     },
 
     greeting: {
@@ -75,16 +77,16 @@ const styles = StyleSheet.create({
     },
 
     name: {
-        fontSize: 38,
+        fontSize: 34,
         fontWeight: '800',
         color: '#16162E',
-        marginVertical: 10,
+        marginVertical: 5,
     },
 
     description: {
         color: '#666',
-        fontSize: 15,
-        lineHeight: 22,
+        fontSize: 17,
+        lineHeight: 20,
     },
 
     badge: {
@@ -102,7 +104,18 @@ const styles = StyleSheet.create({
     },
 
     image: {
-        width: 150,
-        height: 150,
+        position: 'absolute',
+        right: -4,
+        bottom: 10,
+        top: 0,
+
+        width: 435,
+        height: 210,
+
+        opacity: 0.98,
+
+        borderTopRightRadius: 35,
+        borderBottomRightRadius: 40,
     },
+
 });

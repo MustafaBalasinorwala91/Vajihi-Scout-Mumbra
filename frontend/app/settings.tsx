@@ -222,8 +222,22 @@ export default function SettingsScreen() {
                     />
 
                     <SettingsCard
+                        icon="people-circle-outline"
+                        title="About Our Band"
+                        subtitle="Know our legacy, history and organisation"
+                        right={
+                            <Ionicons
+                                name="chevron-forward"
+                                size={22}
+                                color="#999"
+                            />
+                        }
+                        onPress={() => router.push('/about-band')}
+                    />
+
+                    <SettingsCard
                         icon="information-circle-outline"
-                        title="Information"
+                        title="App Info"
                         subtitle="App version and community details"
                         right={
                             <Ionicons

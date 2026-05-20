@@ -366,7 +366,9 @@ async def require_permission(permission_name: str, current_user: User):
 async def signup(signup_data: SignupRequest):
     """Register a new user"""
     # Check if username already exists
-    existing_user = await db.users.find_one({"its_no": signup_data.its_no})
+    existing_user = await db.users.find_one(
+        {"$or": [{"its_no": signup_data.its_no}, {"username": signup_data.its_no}]}
+    )
     if existing_user:
         raise HTTPException(status_code=400, detail="Username already exists")
 
@@ -1522,14 +1524,8 @@ app.include_router(api_router)
 
 app.add_middleware(
     CORSMiddleware,
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:8081",
-        "http://192.168.0.110:8081",
-        "exp://192.168.0.110:8081",
-        "http://192.168.0.110:3000",
-    ],
     allow_methods=["*"],
     allow_headers=["*"],
 )

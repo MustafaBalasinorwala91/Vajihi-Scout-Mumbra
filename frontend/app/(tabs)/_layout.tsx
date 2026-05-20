@@ -62,6 +62,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="fees"
         options={{
+          headerShown: false,
           title: 'Fees',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="cash" size={size} color={color} />
@@ -72,6 +73,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="inventory"
         options={{
+          headerShown: false,
           title: 'Inventory',
           tabBarIcon: ({ color, size }) => (
             <Ionicons
@@ -86,6 +88,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="uniforms"
         options={{
+          headerShown: false,
           title: 'Uniforms',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="shirt" size={size} color={color} />

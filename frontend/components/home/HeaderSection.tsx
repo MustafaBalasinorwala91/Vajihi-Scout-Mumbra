@@ -28,6 +28,12 @@ export default function HeaderSection() {
             </View>
 
             <Image
+                source={require('../../assets/images/band-overlay.png')}
+                style={styles.bandOverlay}
+                resizeMode="cover"
+            />
+            {/* Logo */}
+            <Image
                 source={require('../../assets/logo/vajihi-scout-logo.png')}
                 style={styles.logo}
                 resizeMode="contain"
@@ -49,7 +55,7 @@ export default function HeaderSection() {
 const styles = StyleSheet.create({
     header: {
         paddingTop: 70,
-        paddingBottom: 110,
+        paddingBottom: 140,
         alignItems: 'center',
         borderBottomLeftRadius: 40,
         borderBottomRightRadius: 40,
@@ -64,6 +70,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingHorizontal: 24,
         marginBottom: 30,
+        zIndex: 5,
     },
 
     homeTitle: {
@@ -72,22 +79,36 @@ const styles = StyleSheet.create({
         fontWeight: '800',
     },
 
+    bandOverlay: {
+        position: 'absolute',
+        width: '120%',
+        height: 270,
+        top: 180,
+        opacity: 0.35,
+    },
+
     logo: {
-        width: 70,
-        height: 70,
-        marginBottom: 16,
+        width: 110,
+        height: 110,
+        marginBottom: 40,
+        zIndex: 5,
     },
 
     title: {
         color: '#FFD76A',
-        fontSize: 34,
+        fontSize: 33,
+        top: 65,
         fontWeight: '800',
+        textAlign: 'center',
+        zIndex: 5,
     },
 
     subtitle: {
         color: '#F5EFFF',
         fontSize: 17,
-        marginTop: 10,
+        top: 60,
+        marginTop: 7,
+        zIndex: 2,
     },
 
     wave: {

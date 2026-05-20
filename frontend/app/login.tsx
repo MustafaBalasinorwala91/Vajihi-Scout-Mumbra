@@ -53,6 +53,7 @@ export default function LoginScreen() {
           data.session_token
         );
         setUser(data.user);
+        await checkAuth();
         router.replace('/(tabs)/home');
       } else {
         const error = await response.json();

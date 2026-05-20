@@ -26,7 +26,7 @@ export default function HomeScreen() {
     {
       id: 1,
       icon: 'people',
-      value: '128',
+      value: '45',
       title: 'Members',
       subtitle: 'Total Members',
       color: '#7B61FF',
@@ -142,7 +142,7 @@ export default function HomeScreen() {
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={{
-              paddingRight: 20,
+              paddingRight: 40,
             }}
           >
             {summaryData.map((item) => (

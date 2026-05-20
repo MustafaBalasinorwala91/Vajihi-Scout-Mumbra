@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'expo-router';
 import {
   View,
   Text,
@@ -15,7 +16,7 @@ import { format } from 'date-fns';
 
 interface User {
   user_id: string;
-  email: string;
+  email_id?: string;
   name: string;
   role: string;
 }
@@ -43,6 +44,7 @@ export default function ManageFeesScreen() {
   const [saving, setSaving] = useState(false);
   const [generatingFees, setGeneratingFees] = useState(false);
   const [monthlyAmount, setMonthlyAmount] = useState('');
+  const router = useRouter();
 
   useEffect(() => {
     fetchUsers();
@@ -56,8 +58,17 @@ export default function ManageFeesScreen() {
       });
 
       if (response.ok) {
+
         const data = await response.json();
-        const members = data.filter((u: User) => u.role !== 'admin');
+
+        console.log('USERS API RESPONSE:', data);
+
+        const usersArray = data.users || data;
+
+        const members = usersArray.filter(
+          (u: User) => u.role === 'member'
+        );
+
         setUsers(members);
       }
     } catch (error) {
@@ -93,6 +104,7 @@ export default function ManageFeesScreen() {
 
       if (response.ok) {
         Alert.alert('Success', 'Fee updated successfully');
+        router.back();
         setModalVisible(false);
         setSelectedUser(null);
         setFeeData({
@@ -241,7 +253,9 @@ export default function ManageFeesScreen() {
           >
             <View>
               <Text style={styles.userName}>{user.name}</Text>
-              <Text style={styles.userEmail}>{user.email}</Text>
+              <Text style={styles.userEmail}>
+                {user.email_id}
+              </Text>
             </View>
             <Ionicons name="chevron-forward" size={24} color="#666" />
           </TouchableOpacity>
