@@ -9,26 +9,27 @@ import {
 } from 'react-native';
 
 import { SafeAreaView } from 'react-native-safe-area-context';
-
+import { useFocusEffect } from '@react-navigation/native';
+import { useCallback } from 'react';
 import axios from 'axios';
 
 export default function NotificationsScreen() {
 
-    const [notifications, setNotifications] =
-        useState<any[]>([]);
+    const [notifications, setNotifications] = useState<any[]>([]);
+    const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
-    useEffect(() => {
-
-        loadNotifications();
-
-    }, []);
+    useFocusEffect(
+        useCallback(() => {
+            loadNotifications();
+        }, [])
+    );
 
     const loadNotifications = async () => {
 
         try {
 
             const response = await axios.get(
-                'http://192.168.0.110:8001/api/notifications/my',
+                `${BACKEND_URL}/api/notifications/my`,
                 {
                     withCredentials: true,
                 }

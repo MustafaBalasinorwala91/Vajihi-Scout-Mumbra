@@ -9,7 +9,8 @@ import {
 } from 'react-native';
 
 import { LinearGradient } from 'expo-linear-gradient';
-
+import { useFocusEffect } from '@react-navigation/native';
+import { useCallback } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useRouter } from 'expo-router';
@@ -31,13 +32,12 @@ export default function AttendanceScreen() {
       new Date().toISOString().split('T')[0]
     );
   const [markedDates, setMarkedDates] = useState<any[]>([]);
-  useEffect(() => {
-
-    loadAttendanceDates();
-
-    loadAttendanceStats();
-
-  }, [attendanceType]);
+  useFocusEffect(
+    useCallback(() => {
+      loadAttendanceDates();
+      loadAttendanceStats();
+    }, [attendanceType])
+  );
   const [stats, setStats] = useState({
     total: 0,
     present: 0,
@@ -45,12 +45,14 @@ export default function AttendanceScreen() {
     percentage: 0,
   });
 
+  const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
+
   const loadAttendanceDates = async () => {
 
     try {
 
       const response = await axios.get(
-        `http://192.168.0.110:8001/api/attendance/dates/${attendanceType.toLowerCase()}`
+        `${BACKEND_URL}/api/attendance/dates/${attendanceType.toLowerCase()}`
       );
 
       setMarkedDates(response.data);
@@ -67,7 +69,7 @@ export default function AttendanceScreen() {
     try {
 
       const response = await axios.get(
-        `http://192.168.0.110:8001/api/attendance/history/${attendanceType}`
+        `${BACKEND_URL}/api/attendance/history/${attendanceType}`
       );
 
       const history = response.data;

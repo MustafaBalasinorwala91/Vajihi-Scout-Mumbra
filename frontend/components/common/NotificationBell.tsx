@@ -43,6 +43,7 @@ export default function NotificationBell({
         loadNotifications();
 
     }, []);
+    const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
     const loadNotifications = async () => {
 
@@ -50,7 +51,7 @@ export default function NotificationBell({
 
             const response =
                 await axios.get(
-                    'http://192.168.0.110:8001/api/notifications/my'
+                    `${BACKEND_URL}/api/notifications/my`
                 );
 
             if (
