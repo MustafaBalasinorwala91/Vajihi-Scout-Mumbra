@@ -9,8 +9,7 @@ import {
 } from 'react-native';
 
 import { LinearGradient } from 'expo-linear-gradient';
-import { useFocusEffect } from '@react-navigation/native';
-import { useCallback } from 'react';
+
 import { Ionicons } from '@expo/vector-icons';
 
 import { useRouter } from 'expo-router';
@@ -32,12 +31,11 @@ export default function AttendanceScreen() {
       new Date().toISOString().split('T')[0]
     );
   const [markedDates, setMarkedDates] = useState<any[]>([]);
-  useFocusEffect(
-    useCallback(() => {
-      loadAttendanceDates();
-      loadAttendanceStats();
-    }, [attendanceType])
-  );
+  useEffect(() => {
+    loadAttendanceDates();
+    loadAttendanceStats();
+  }, [attendanceType]);
+
   const [stats, setStats] = useState({
     total: 0,
     present: 0,

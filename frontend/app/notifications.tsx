@@ -9,8 +9,7 @@ import {
 } from 'react-native';
 
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
-import { useCallback } from 'react';
+
 import axios from 'axios';
 
 export default function NotificationsScreen() {
@@ -18,11 +17,9 @@ export default function NotificationsScreen() {
     const [notifications, setNotifications] = useState<any[]>([]);
     const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
-    useFocusEffect(
-        useCallback(() => {
-            loadNotifications();
-        }, [])
-    );
+    useEffect(() => {
+        loadNotifications();
+    }, []);
 
     const loadNotifications = async () => {
 
