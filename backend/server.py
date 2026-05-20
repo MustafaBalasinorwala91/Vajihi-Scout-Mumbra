@@ -630,45 +630,77 @@ async def check_security_question(username: str):
 
 @api_router.put("/profile")
 async def update_profile(
-    update_data: UpdateProfileRequest, current_user: User = Depends(get_current_user)
+    update_data: UpdateProfileRequest,
+    current_user: User = Depends(get_current_user),
 ):
     """Update user profile"""
+
     update_dict = {}
+
+    # CHECK ITS NUMBER DUPLICATE
+    existing = None
+
     if update_data.its_no:
+
         existing = await db.users.find_one(
-            {"its_no": update_data.its_no, "user_id": {"$ne": current_user.user_id}}
-        )
-    if existing:
-        raise HTTPException(status_code=400, detail="ITS Number already exists")
-    update_dict["its_no"] = update_data.its_no
-    update_dict["username"] = update_data.its_no
-    if update_data.name:
-        update_dict["name"] = update_data.name
-    if update_data.phone:
-        update_dict["phone"] = update_data.phone
-    if update_data.picture:
-        update_dict["picture"] = update_data.picture
-    if update_data.email_id:
-        update_dict["email_id"] = update_data.email_id
-    if update_data.age:
-        update_dict["age"] = update_data.age
-    if update_data.birth_date:
-        update_dict["birth_date"] = update_data.birth_date
-    if update_data.parent_contact:
-        update_dict["parent_contact"] = update_data.parent_contact
-    if update_data.instrument:
-        update_dict["instrument"] = update_data.instrument
-    if update_data.joining_year:
-        update_dict["joining_year"] = update_data.joining_year
-    if update_dict:
-        await db.users.update_one(
-            {"user_id": current_user.user_id}, {"$set": update_dict}
+            {
+                "its_no": update_data.its_no,
+                "user_id": {"$ne": current_user.user_id},
+            }
         )
 
-    # Return updated user
+        if existing:
+            raise HTTPException(
+                status_code=400,
+                detail="ITS Number already exists",
+            )
+
+        update_dict["its_no"] = update_data.its_no
+        update_dict["username"] = update_data.its_no
+
+    # OTHER PROFILE FIELDS
+
+    if update_data.name:
+        update_dict["name"] = update_data.name
+
+    if update_data.phone:
+        update_dict["phone"] = update_data.phone
+
+    if update_data.picture:
+        update_dict["picture"] = update_data.picture
+
+    if update_data.email_id:
+        update_dict["email_id"] = update_data.email_id
+
+    if update_data.age:
+        update_dict["age"] = update_data.age
+
+    if update_data.birth_date:
+        update_dict["birth_date"] = update_data.birth_date
+
+    if update_data.parent_contact:
+        update_dict["parent_contact"] = update_data.parent_contact
+
+    if update_data.instrument:
+        update_dict["instrument"] = update_data.instrument
+
+    if update_data.joining_year:
+        update_dict["joining_year"] = update_data.joining_year
+
+    # UPDATE DATABASE
+    if update_dict:
+
+        await db.users.update_one(
+            {"user_id": current_user.user_id},
+            {"$set": update_dict},
+        )
+
+    # RETURN UPDATED USER
     user_doc = await db.users.find_one(
-        {"user_id": current_user.user_id}, {"_id": 0, "password_hash": 0}
+        {"user_id": current_user.user_id},
+        {"_id": 0, "password_hash": 0},
     )
+
     return User(**user_doc)
 
 
@@ -906,37 +938,15 @@ async def get_attendance_dates(attendance_type: str):
         {"attendance_type": attendance_type}, {"_id": 0}
     ).to_list(5000)
 
-    grouped = {}
+    result = []
 
     for record in records:
 
-        date = record["date"]
-
-        if date not in grouped:
-
-            grouped[date] = {
-                "present": 0,
-                "absent": 0,
-            }
-
-        if record["status"] == "present":
-
-            grouped[date]["present"] += 1
-
-        else:
-
-            grouped[date]["absent"] += 1
-
-    result = []
-
-    for date, counts in grouped.items():
-
-        status = "present" if counts["present"] >= counts["absent"] else "absent"
-
         result.append(
             {
-                "date": date,
-                "status": status,
+                "date": record["date"],
+                "status": record["status"],
+                "user_id": record["user_id"],
             }
         )
 
@@ -1527,6 +1537,8 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:8081",
         "http://localhost:19006",
+        "http://192.168.0.110:8081",
+        "exp://192.168.0.110:8081",
         "https://vajihi-scout-mumbra.onrender.com",
     ],
     allow_credentials=True,
