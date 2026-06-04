@@ -557,7 +557,7 @@ const styles = StyleSheet.create({
   },
 
   guideCard: {
-    marginHorizontal: 22,
+    marginHorizontal: 10,
     marginTop: 18,
     borderRadius: 28,
     padding: 22,
@@ -594,14 +594,14 @@ const styles = StyleSheet.create({
   },
 
   guideTitle: {
-    fontSize: 22,
+    fontSize: 16,
     fontWeight: '700',
     color: '#5B3DF5',
   },
 
   guideSubtitle: {
     color: '#666',
-    marginTop: 4,
+    marginTop: 5,
   },
 
   guideBtn: {
@@ -610,7 +610,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 16,
-    marginLeft: 10,
+    marginLeft: -1,
   },
 
   guideBtnText: {

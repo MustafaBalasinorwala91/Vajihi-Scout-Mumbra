@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, } from 'react';
 import BadgeCard from '../../components/BadgeCard';
 import FavouriteItem from '../../components/FavouriteItem';
 import {
@@ -11,22 +11,104 @@ import {
   TextInput,
   Alert,
   ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
+const InfoField = ({
+  icon,
+  label,
+  value,
+  keyName,
+  keyboard = 'default',
+  placeholder,
+  editing,
+  formData,
+  setFormData,
+}: any) => (
+  <View style={styles.infoItem}>
+    <View style={styles.infoIconWrap}>
+      <Ionicons name={icon} size={20} color="#5B4FCE" />
+    </View>
 
+    <View style={{ flex: 1 }}>
+      <Text style={styles.infoLabel}>{label}</Text>
+
+      {editing ? (
+        <TextInput
+          style={styles.input}
+          value={value}
+          keyboardType={keyboard}
+          placeholder={placeholder}
+          placeholderTextColor="#999"
+          onChangeText={(text) => {
+
+            let updatedText = text;
+
+            // AUTO FORMAT DATE
+            if (keyName === 'birth_date') {
+
+              updatedText =
+                text
+                  .replace(/\D/g, '')
+                  .slice(0, 8);
+
+              if (updatedText.length > 4) {
+
+                updatedText =
+                  `${updatedText.slice(0, 2)}/${updatedText.slice(2, 4)}/${updatedText.slice(4)}`;
+
+              } else if (updatedText.length > 2) {
+
+                updatedText =
+                  `${updatedText.slice(0, 2)}/${updatedText.slice(2)}`;
+              }
+            }
+
+            // NUMBERS ONLY
+            if (
+              keyName === 'phone' ||
+              keyName === 'parent_contact' ||
+              keyName === 'its_no' ||
+              keyName === 'age' ||
+              keyName === 'joining_year'
+            ) {
+
+              updatedText = text.replace(/\D/g, '');
+            }
+
+            setFormData({
+              ...formData,
+              [keyName]: updatedText,
+            });
+          }}
+        />
+      ) : (
+        <Text style={styles.infoValue}>{value || 'Not provided'}</Text>
+      )}
+    </View>
+  </View>
+);
 export default function ProfileScreen() {
   const { user, logout, checkAuth } = useAuth();
   const router = useRouter();
-
-  const profileImage = user?.picture || null;
-  const bio = "Music is not what I do, it’s who I am. 🎵";
-
   const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] =
+    useState(false);
+
+  const [practiceStats, setPracticeStats] =
+    useState<any>(null);
+
+  const [khidmatStats, setKhidmatStats] =
+    useState<any>(null);
+
+  const [dutiesStats, setDutiesStats] =
+    useState<any>(null);
+
 
   const [formData, setFormData] = useState({
     its_no: user?.its_no || '',
@@ -40,6 +122,28 @@ export default function ProfileScreen() {
     instrument: user?.instrument || '',
     joining_year: user?.joining_year || '',
   });
+  useEffect(() => {
+    loadAttendanceStats();
+    if (user) {
+      setFormData({
+        its_no: user?.its_no || '',
+        name: user?.name || '',
+        phone: user?.phone || '',
+        email_id: user?.email_id || '',
+        picture: user?.picture || '',
+        age: user?.age || '',
+        birth_date: user?.birth_date || '',
+        parent_contact: user?.parent_contact || '',
+        instrument: user?.instrument || '',
+        joining_year: user?.joining_year || '',
+      });
+    }
+  }, [user]);
+  const profileImage =
+    formData.picture || user?.picture || null;
+  const bio =
+    `${user?.role?.toUpperCase() || 'MEMBER'} • ${user?.instrument || 'No Instrument Assigned'
+    }`;
 
   const handlePickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -50,7 +154,7 @@ export default function ProfileScreen() {
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.5,
@@ -66,6 +170,58 @@ export default function ProfileScreen() {
   };
 
   const handleSaveProfile = async () => {
+    if (loading) return;
+    if (!formData.name.trim()) {
+      Alert.alert(
+        'Validation Error',
+        'Name cannot be empty'
+      );
+      return;
+    }
+
+    if (
+      formData.phone &&
+      !/^\d{10}$/.test(formData.phone)
+    ) {
+      Alert.alert(
+        'Validation Error',
+        'Phone number must be 10 digits'
+      );
+      return;
+    }
+
+    if (
+      formData.parent_contact &&
+      !/^\d{10}$/.test(formData.parent_contact)
+    ) {
+      Alert.alert(
+        'Validation Error',
+        'Parent contact must be 10 digits'
+      );
+      return;
+    }
+
+    if (
+      formData.email_id &&
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email_id)
+    ) {
+      Alert.alert(
+        'Validation Error',
+        'Enter valid email address'
+      );
+      return;
+    }
+
+    if (
+      formData.joining_year &&
+      !/^\d{4}$/.test(formData.joining_year)
+    ) {
+      Alert.alert(
+        'Validation Error',
+        'Joining year must be 4 digits'
+      );
+      return;
+    }
     setLoading(true);
 
     try {
@@ -88,7 +244,12 @@ export default function ProfileScreen() {
         Alert.alert('Error', 'Failed to update profile');
       }
     } catch (error) {
-      console.log(error);
+      console.error(error);
+
+      Alert.alert(
+        'Error',
+        'Something went wrong'
+      );
       Alert.alert('Error', 'Failed to update profile');
     } finally {
       setLoading(false);
@@ -111,11 +272,74 @@ export default function ProfileScreen() {
       },
     ]);
   };
+  const onRefresh = async () => {
+
+    setRefreshing(true);
+
+    await checkAuth();
+
+    setRefreshing(false);
+  };
+  const loadAttendanceStats = async () => {
+
+    try {
+
+      const AsyncStorage =
+        require('@react-native-async-storage/async-storage').default;
+
+      const token =
+        await AsyncStorage.getItem('session_token');
+
+      const headers = {
+        Authorization: `Bearer ${token}`,
+      };
+
+      const [practiceRes, khidmatRes, dutiesRes] =
+        await Promise.all([
+
+          fetch(
+            `${process.env.EXPO_PUBLIC_BACKEND_URL}/api/attendance/my-stats/practice`,
+            { headers }
+          ),
+
+          fetch(
+            `${process.env.EXPO_PUBLIC_BACKEND_URL}/api/attendance/my-stats/khidmat`,
+            { headers }
+          ),
+          fetch(
+            `${process.env.EXPO_PUBLIC_BACKEND_URL}/api/attendance/my-stats/duties`,
+            { headers }
+          ),
+        ]);
+
+      const practiceData =
+        await practiceRes.json();
+
+      const khidmatData =
+        await khidmatRes.json();
+
+      const dutiesData =
+        await dutiesRes.json();
+
+      setPracticeStats(practiceData);
+
+      setKhidmatStats(khidmatData);
+
+      setDutiesStats(dutiesData);
+
+    } catch (error) {
+
+      console.log(
+        'ATTENDANCE STATS ERROR:',
+        error
+      );
+    }
+  };
 
   const badges = [
     {
       id: '1',
-      title: 'Active Member',
+      title: user?.role || 'Member',
       icon: 'shield-checkmark',
       type: 'ionicons',
       color: '#6C4DFF',
@@ -124,72 +348,30 @@ export default function ProfileScreen() {
 
     {
       id: '2',
-      title: 'Rhythm Master',
-      icon: 'music',
-      type: 'fontawesome',
-      color: '#FF6B6B',
-      locked: false,
-    },
-
-    {
-      id: '3',
-      title: 'Team Player',
-      icon: 'account-group',
-      type: 'material',
+      title: user?.permissions?.attendance
+        ? 'Attendance Access'
+        : 'Attendance View',
+      icon: 'calendar',
+      type: 'ionicons',
       color: '#31C7B7',
       locked: false,
     },
 
     {
-      id: '4',
-      title: 'Rising Star',
-      icon: 'star',
+      id: '3',
+      title: user?.permissions?.members
+        ? 'Member Manager'
+        : 'Member Access',
+      icon: 'people',
       type: 'ionicons',
-      color: '#FFB020',
-      locked: true,
-    },
-
-    {
-      id: '5',
-      title: 'Stage Performer',
-      icon: 'microphone',
-      type: 'fontawesome',
-      color: '#FF5DA2',
-      locked: false,
-    },
-
-    {
-      id: '6',
-      title: 'Dedicated Member',
-      icon: 'trophy',
-      type: 'ionicons',
-      color: '#5B4FCE',
-      locked: false,
-    },
-
-    {
-      id: '7',
-      title: 'Band Leader',
-      icon: 'crown',
-      type: 'material',
-      color: '#FFA726',
-      locked: true,
-    },
-
-    {
-      id: '8',
-      title: 'Music Enthusiast',
-      icon: 'musical-notes',
-      type: 'ionicons',
-      color: '#7B61FF',
+      color: '#FF6B6B',
       locked: false,
     },
   ];
-
   const favourites = [
     {
       id: '1',
-      title: 'Songs',
+      title: user?.instrument || 'Instrument',
       icon: 'musical-notes',
       type: 'ionicons',
       color: '#6C4DFF',
@@ -197,90 +379,49 @@ export default function ProfileScreen() {
 
     {
       id: '2',
-      title: 'Bands',
-      icon: 'account-group',
-      type: 'material',
+      title: user?.role || 'Member',
+      icon: 'person',
+      type: 'ionicons',
       color: '#31C7B7',
     },
 
     {
       id: '3',
-      title: 'Artists',
-      icon: 'microphone',
-      type: 'fontawesome',
+      title: user?.joining_year || 'Year',
+      icon: 'calendar',
+      type: 'ionicons',
       color: '#FF5DA2',
     },
 
     {
       id: '4',
-      title: 'Albums',
-      icon: 'disc',
+      title: user?.its_no || 'ITS',
+      icon: 'card',
       type: 'ionicons',
       color: '#FFA726',
     },
-
-    {
-      id: '5',
-      title: 'Playlists',
-      icon: 'list',
-      type: 'ionicons',
-      color: '#5B4FCE',
-    },
-
-    {
-      id: '6',
-      title: 'Events',
-      icon: 'calendar',
-      type: 'ionicons',
-      color: '#FF6B6B',
-    },
   ];
-
-  const InfoField = ({
-    icon,
-    label,
-    value,
-    keyName,
-    keyboard = 'default',
-    placeholder,
-  }: any) => (
-    <View style={styles.infoItem}>
-      <View style={styles.infoIconWrap}>
-        <Ionicons name={icon} size={20} color="#5B4FCE" />
-      </View>
-
-      <View style={{ flex: 1 }}>
-        <Text style={styles.infoLabel}>{label}</Text>
-
-        {editing ? (
-          <TextInput
-            style={styles.input}
-            value={value}
-            keyboardType={keyboard}
-            placeholder={placeholder}
-            placeholderTextColor="#999"
-            onChangeText={(text) =>
-              setFormData({
-                ...formData,
-                [keyName]: text,
-              })
-            }
-          />
-        ) : (
-          <Text style={styles.infoValue}>{value || 'Not provided'}</Text>
-        )}
-      </View>
-    </View>
-  );
 
   return (
     <ScrollView
+
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          colors={['#5B4FCE']}
+          tintColor="#5B4FCE"
+        />
+      }
+
       style={styles.container}
       showsVerticalScrollIndicator={false}
-      contentContainerStyle={{ paddingBottom: 150 }}
+      contentContainerStyle={{
+        paddingBottom: 150,
+      }}
     >
       <LinearGradient
-        colors={['#4B2CCF', '#6C4DFF']}
+        colors={['#2B145A', '#5B3DF5']}
         style={styles.header}
       >
         <View style={styles.headerTop}>
@@ -320,10 +461,9 @@ export default function ProfileScreen() {
           <View style={styles.userInfoWrap}>
             <Text style={styles.userName}>{user?.name || 'Member'}</Text>
 
-            <View style={styles.memberBadge}>
-              <Text style={styles.memberBadgeText}>MEMBER</Text>
-            </View>
-
+            <Text style={styles.memberBadgeText}>
+              {user?.role?.toUpperCase() || 'MEMBER'}
+            </Text>
             <Text style={styles.bioText}>
               {bio}
             </Text>
@@ -337,20 +477,28 @@ export default function ProfileScreen() {
         >
           <View style={styles.statCard}>
             <Ionicons name="shield-checkmark-outline" size={24} color="#fff" />
-            <Text style={styles.statLabel}>Performance</Text>
-            <Text style={styles.statValue}>Intermediate</Text>
+            <Text style={styles.statLabel}>Role</Text>
+            <Text style={styles.statValue}>
+              {user?.role || 'Member'}
+            </Text>
           </View>
 
           <View style={styles.statCard}>
             <Ionicons name="calendar-outline" size={24} color="#fff" />
             <Text style={styles.statLabel}>Member Since</Text>
-            <Text style={styles.statValue}>{user?.joining_year || '2024'}</Text>
+            <Text style={styles.statValue}>{user?.joining_year || '--'}</Text>
           </View>
 
           <View style={styles.statCard}>
             <Ionicons name="person-outline" size={24} color="#fff" />
-            <Text style={styles.statLabel}>Role</Text>
-            <Text style={styles.statValue}>{user?.instrument || 'Member'}</Text>
+            <Text style={styles.statLabel}>Instrument</Text>
+            <Text
+              style={styles.statValue}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+            >
+              {user?.instrument || 'Not Set'}
+            </Text>
           </View>
 
           <View style={styles.statCard}>
@@ -374,6 +522,9 @@ export default function ProfileScreen() {
           </View>
 
           <InfoField
+            editing={editing}
+            formData={formData}
+            setFormData={setFormData}
             icon="card-outline"
             label="ITS Number"
             value={formData.its_no}
@@ -383,6 +534,9 @@ export default function ProfileScreen() {
           />
 
           <InfoField
+            editing={editing}
+            formData={formData}
+            setFormData={setFormData}
             icon="person-outline"
             label="Name"
             value={formData.name}
@@ -391,6 +545,9 @@ export default function ProfileScreen() {
           />
 
           <InfoField
+            editing={editing}
+            formData={formData}
+            setFormData={setFormData}
             icon="mail-outline"
             label="Email"
             value={formData.email_id}
@@ -400,6 +557,9 @@ export default function ProfileScreen() {
           />
 
           <InfoField
+            editing={editing}
+            formData={formData}
+            setFormData={setFormData}
             icon="call-outline"
             label="Phone"
             value={formData.phone}
@@ -409,6 +569,9 @@ export default function ProfileScreen() {
           />
 
           <InfoField
+            editing={editing}
+            formData={formData}
+            setFormData={setFormData}
             icon="calendar-outline"
             label="Age"
             value={formData.age}
@@ -418,6 +581,9 @@ export default function ProfileScreen() {
           />
 
           <InfoField
+            editing={editing}
+            formData={formData}
+            setFormData={setFormData}
             icon="gift-outline"
             label="Birth Date"
             value={formData.birth_date}
@@ -426,6 +592,9 @@ export default function ProfileScreen() {
           />
 
           <InfoField
+            editing={editing}
+            formData={formData}
+            setFormData={setFormData}
             icon="people-outline"
             label="Parent Contact"
             value={formData.parent_contact}
@@ -435,6 +604,9 @@ export default function ProfileScreen() {
           />
 
           <InfoField
+            editing={editing}
+            formData={formData}
+            setFormData={setFormData}
             icon="musical-notes-outline"
             label="Instrument"
             value={formData.instrument}
@@ -443,6 +615,9 @@ export default function ProfileScreen() {
           />
 
           <InfoField
+            editing={editing}
+            formData={formData}
+            setFormData={setFormData}
             icon="time-outline"
             label="Joining Year"
             value={formData.joining_year}
@@ -455,39 +630,59 @@ export default function ProfileScreen() {
         <View style={styles.card}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Attendance</Text>
-            <Text style={styles.monthText}>This Month</Text>
+            <Text style={styles.monthText}>Overall Attendance</Text>
           </View>
 
           <View style={styles.attendanceRow}>
             <View style={styles.attendanceCirclePurple}>
-              <Text style={styles.attendancePercent}>92%</Text>
+              <Text style={styles.attendancePercent}>
+                {practiceStats?.percentage || 0}%
+              </Text>
             </View>
 
             <View>
-              <Text style={styles.attendanceTitle}>Duties</Text>
-              <Text style={styles.attendanceSub}>12 / 13</Text>
-            </View>
-          </View>
+              <Text style={styles.attendanceTitle}>
+                Practices
+              </Text>
 
-          <View style={styles.attendanceRow}>
-            <View style={styles.attendanceCircleGreen}>
-              <Text style={styles.attendancePercent}>88%</Text>
-            </View>
-
-            <View>
-              <Text style={styles.attendanceTitle}>Practices</Text>
-              <Text style={styles.attendanceSub}>7 / 8</Text>
+              <Text style={styles.attendanceSub}>
+                Present: {practiceStats?.present || 0} / {practiceStats?.total || 0}
+              </Text>
             </View>
           </View>
 
           <View style={styles.attendanceRow}>
             <View style={styles.attendanceCircleOrange}>
-              <Text style={styles.attendancePercent}>85%</Text>
+              <Text style={styles.attendancePercent}>
+                {khidmatStats?.percentage || 0}%
+              </Text>
             </View>
 
             <View>
-              <Text style={styles.attendanceTitle}>Khidmat</Text>
-              <Text style={styles.attendanceSub}>17 / 20</Text>
+              <Text style={styles.attendanceTitle}>
+                Khidmat
+              </Text>
+
+              <Text style={styles.attendanceSub}>
+                Present: {khidmatStats?.present || 0} / {khidmatStats?.total || 0}
+              </Text>
+            </View>
+          </View>
+          <View style={styles.attendanceRow}>
+            <View style={styles.attendanceCirclePurple}>
+              <Text style={styles.attendancePercent}>
+                {dutiesStats?.percentage || 0}%
+              </Text>
+            </View>
+
+            <View>
+              <Text style={styles.attendanceTitle}>
+                Duties
+              </Text>
+
+              <Text style={styles.attendanceSub}>
+                Present: {dutiesStats?.present || 0} / {dutiesStats?.total || 0}
+              </Text>
             </View>
           </View>
         </View>
@@ -539,14 +734,35 @@ export default function ProfileScreen() {
           <View style={styles.buttonContainer}>
             <TouchableOpacity
               style={styles.cancelButton}
-              onPress={() => setEditing(false)}
+              onPress={() => {
+
+                setFormData({
+                  its_no: user?.its_no || '',
+                  name: user?.name || '',
+                  phone: user?.phone || '',
+                  email_id: user?.email_id || '',
+                  picture: user?.picture || '',
+                  age: user?.age || '',
+                  birth_date: user?.birth_date || '',
+                  parent_contact: user?.parent_contact || '',
+                  instrument: user?.instrument || '',
+                  joining_year: user?.joining_year || '',
+                });
+
+                setEditing(false);
+
+              }}
             >
               <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.saveButton}
+              style={[
+                styles.saveButton,
+                loading && { opacity: 0.6 }
+              ]}
               onPress={handleSaveProfile}
+              disabled={loading}
             >
               {loading ? (
                 <ActivityIndicator color="#fff" />
@@ -573,7 +789,7 @@ const styles = StyleSheet.create({
   },
 
   header: {
-    paddingTop: 60,
+    paddingTop: 70,
     paddingBottom: 40,
     paddingHorizontal: 20,
     borderBottomLeftRadius: 30,
@@ -589,8 +805,8 @@ const styles = StyleSheet.create({
 
   headerTitle: {
     color: '#fff',
-    fontSize: 22,
-    fontWeight: '700',
+    fontSize: 30,
+    fontWeight: '800',
   },
 
   profileSection: {
@@ -679,8 +895,10 @@ const styles = StyleSheet.create({
   },
 
   statCard: {
-    width: 120,
+    width: 140,
     backgroundColor: 'rgba(255,255,255,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
     borderRadius: 22,
     padding: 18,
     marginRight: 14,
@@ -696,20 +914,20 @@ const styles = StyleSheet.create({
 
   statValue: {
     color: '#fff',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
     marginTop: 8,
     textAlign: 'center',
   },
 
   mainContent: {
-    marginTop: -20,
+    marginTop: -28,
     paddingHorizontal: 16,
   },
 
   card: {
     backgroundColor: '#fff',
-    borderRadius: 24,
+    borderRadius: 28,
     padding: 18,
     marginBottom: 18,
     shadowColor: '#000',

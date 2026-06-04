@@ -1,22 +1,31 @@
 import React, { useEffect, useState } from 'react';
 import { useLocalSearchParams } from 'expo-router';
-
+import { TouchableOpacity } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
     View,
     Text,
     FlatList,
     StyleSheet,
     StatusBar,
+    RefreshControl,
 } from 'react-native';
 
 import { SafeAreaView } from 'react-native-safe-area-context';
-
+import { useRouter } from 'expo-router';
 import axios from 'axios';
-
+import { useAuth } from '../contexts/AuthContext';
 export default function AttendanceHistoryScreen() {
 
     const [history, setHistory] = useState<any[]>([]);
+    const [refreshing, setRefreshing] =
+        useState(false);
+    const router = useRouter();
+    const { user } = useAuth();
 
+    const canManageAttendance =
+        user?.permissions?.attendance;
     const { type } = useLocalSearchParams();
 
     useEffect(() => {
@@ -27,15 +36,20 @@ export default function AttendanceHistoryScreen() {
 
         }
 
-    }, [type]);
+    }, [type, canManageAttendance]);
     const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
     const loadHistory = async () => {
 
         try {
 
+            const endpoint =
+                canManageAttendance
+                    ? `${BACKEND_URL}/api/attendance/history/${type}`
+                    : `${BACKEND_URL}/api/attendance/my-history/${type}`;
+
             const response = await axios.get(
-                `${BACKEND_URL}/api/attendance/history/${type}`,
+                endpoint,
                 {
                     withCredentials: true,
                 }
@@ -45,37 +59,82 @@ export default function AttendanceHistoryScreen() {
 
         } catch (error) {
 
-            console.log(error);
+            console.error(error);
+
         }
+    };
+
+    const onRefresh = async () => {
+
+        setRefreshing(true);
+
+        await loadHistory();
+
+        setRefreshing(false);
     };
 
     return (
 
-        <SafeAreaView style={styles.container}>
+        <View style={styles.container}>
 
             <StatusBar
                 barStyle="light-content"
             />
 
-            <View style={styles.header}>
+            <LinearGradient
+                colors={['#2B145A', '#5B3DF5']}
+                style={styles.header}
+            >
 
-                <Text style={styles.headerTitle}>
-                    Attendance History
-                </Text>
+                <View style={styles.headerTop}>
 
-                <Text style={styles.headerSubtitle}>
-                    View all saved attendance records
-                </Text>
+                    <TouchableOpacity
+                        activeOpacity={0.8}
+                        style={styles.backButton}
+                        onPress={() => router.back()}
+                    >
+                        <Ionicons
+                            name="arrow-back"
+                            size={22}
+                            color="#fff"
+                        />
+                    </TouchableOpacity>
 
-            </View>
+                    <View style={styles.headerTextWrapper}>
+
+                        <Text style={styles.headerTitle}>
+                            Attendance History
+                        </Text>
+
+                        <Text style={styles.headerSubtitle}>
+
+                            {canManageAttendance
+                                ? 'View all saved attendance records'
+                                : 'View your attendance records'}
+
+                        </Text>
+
+                    </View>
+
+                </View>
+
+            </LinearGradient>
 
             <FlatList
+                refreshControl={
+                    <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={onRefresh}
+                        colors={['#5B3DF5']}
+                        tintColor="#5B3DF5"
+                    />
+                }
                 data={history}
 
                 keyExtractor={(item) => item.date}
 
                 contentContainerStyle={{
-                    paddingTop: 20,
+                    paddingTop: 22,
                     paddingBottom: 40,
                 }}
 
@@ -83,7 +142,19 @@ export default function AttendanceHistoryScreen() {
 
                 renderItem={({ item }) => (
 
-                    <View style={styles.card}>
+                    <TouchableOpacity
+                        activeOpacity={0.8}
+                        style={styles.card}
+                        onPress={() =>
+                            router.push({
+                                pathname: '/attendance-details',
+                                params: {
+                                    type: item.attendance_type,
+                                    date: item.date,
+                                },
+                            })
+                        }
+                    >
 
                         <View style={styles.topRow}>
 
@@ -139,11 +210,11 @@ export default function AttendanceHistoryScreen() {
 
                         </View>
 
-                    </View>
+                    </TouchableOpacity>
                 )}
             />
 
-        </SafeAreaView>
+        </View>
     );
 }
 
@@ -151,30 +222,60 @@ const styles = StyleSheet.create({
 
     container: {
         flex: 1,
-        backgroundColor: '#F4F3F8',
+        backgroundColor: '#F5F5F5',
+    },
+    content: {
+        flex: 1,
+        backgroundColor: '#F5F5F5',
+
+        marginTop: -20,
+
+        borderTopLeftRadius: 28,
+        borderTopRightRadius: 28,
     },
 
     header: {
-        backgroundColor: '#5B3DF5',
-
-        paddingHorizontal: 24,
-        paddingTop: 20,
+        paddingTop: 70,
         paddingBottom: 30,
+        paddingHorizontal: 24,
 
         borderBottomLeftRadius: 34,
         borderBottomRightRadius: 34,
     },
+    headerTop: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 16,
+    },
+
+    headerTextWrapper: {
+        flex: 1,
+    },
 
     headerTitle: {
-        color: '#fff',
-        fontSize: 34,
+        fontSize: 30,
         fontWeight: '800',
+        color: '#fff',
     },
 
     headerSubtitle: {
-        color: '#DDD6FF',
-        fontSize: 17,
-        marginTop: 8,
+        marginTop: 6,
+        fontSize: 16,
+        color: 'rgba(255,255,255,0.8)',
+    },
+
+    backButton: {
+        width: 44,
+        height: 44,
+
+        borderRadius: 14,
+
+        backgroundColor: 'rgba(255,255,255,0.18)',
+
+        justifyContent: 'center',
+        alignItems: 'center',
+
+        marginTop: 2,
     },
 
     card: {
@@ -184,6 +285,8 @@ const styles = StyleSheet.create({
         marginBottom: 18,
 
         borderRadius: 28,
+        borderWidth: 1,
+        borderColor: '#F3F0FF',
 
         padding: 22,
 

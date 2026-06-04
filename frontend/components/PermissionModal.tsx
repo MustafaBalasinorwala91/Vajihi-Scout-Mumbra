@@ -98,7 +98,7 @@ export default function PermissionModal({
 
         } catch (error) {
 
-            console.log(error);
+            console.error(error);
 
             Alert.alert(
                 'Error',

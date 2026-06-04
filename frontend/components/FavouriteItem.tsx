@@ -54,7 +54,11 @@ export default function FavouriteItem({
                 {renderIcon()}
             </View>
 
-            <Text style={styles.title}>
+            <Text
+                style={styles.title}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+            >
                 {title}
             </Text>
         </View>
@@ -65,13 +69,13 @@ const styles = StyleSheet.create({
     container: {
         alignItems: 'center',
         marginRight: 18,
+        width: 110,
     },
 
     circle: {
-        width: 74,
-        height: 74,
-        borderRadius: 37,
-
+        width: 68,
+        height: 68,
+        borderRadius: 34,
         backgroundColor: '#f2edff',
 
         justifyContent: 'center',
@@ -90,8 +94,10 @@ const styles = StyleSheet.create({
     },
 
     title: {
-        fontSize: 13,
+        fontSize: 12,
         fontWeight: '700',
         color: '#1a1a2e',
+        textAlign: 'center',
+        width: '100%',
     },
 });

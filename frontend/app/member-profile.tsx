@@ -7,6 +7,7 @@ import {
     TouchableOpacity,
     Image,
     ActivityIndicator,
+    Alert,
 } from 'react-native';
 
 import { LinearGradient } from 'expo-linear-gradient';
@@ -25,16 +26,17 @@ export default function MemberProfileScreen() {
     const { user_id } = useLocalSearchParams();
 
     const [member, setMember] = useState<any>(null);
+    const [attendance, setAttendance] = useState<any>(null);
+    const [canViewPrivate, setCanViewPrivate] = useState(false);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         loadMember();
-    }, []);
-
+    }, [user_id]);
     const loadMember = async () => {
         try {
             const response = await fetch(
-                `${BACKEND_URL}/api/members/${user_id}`,
+                `${BACKEND_URL}/api/admin/user-profile/${user_id}`,
                 {
                     credentials: 'include',
                 }
@@ -42,9 +44,14 @@ export default function MemberProfileScreen() {
 
             const data = await response.json();
 
-            setMember(data);
+            setMember(data.user);
+            setAttendance(data.attendance);
+            setCanViewPrivate(data.can_view_private);
         } catch (error) {
-            console.log('LOAD MEMBER ERROR:', error);
+            Alert.alert(
+                'Error',
+                'Failed to load member profile'
+            );
         } finally {
             setLoading(false);
         }
@@ -55,7 +62,7 @@ export default function MemberProfileScreen() {
     const badges = [
         {
             id: '1',
-            title: 'Active Member',
+            title: member?.role || 'Member',
             icon: 'shield-checkmark',
             type: 'ionicons',
             color: '#6C4DFF',
@@ -63,25 +70,28 @@ export default function MemberProfileScreen() {
 
         {
             id: '2',
-            title: 'Rhythm Master',
-            icon: 'music',
-            type: 'fontawesome',
-            color: '#FF6B6B',
+            title: member?.permissions?.attendance
+                ? 'Attendance Access'
+                : 'Attendance View',
+            icon: 'calendar',
+            type: 'ionicons',
+            color: '#31C7B7',
         },
 
         {
             id: '3',
-            title: 'Team Player',
-            icon: 'account-group',
-            type: 'material',
-            color: '#31C7B7',
+            title: member?.permissions?.members
+                ? 'Member Manager'
+                : 'Member Access',
+            icon: 'people',
+            type: 'ionicons',
+            color: '#FF6B6B',
         },
     ];
-
     const favourites = [
         {
             id: '1',
-            title: 'Songs',
+            title: member?.instrument || 'Instrument',
             icon: 'musical-notes',
             type: 'ionicons',
             color: '#6C4DFF',
@@ -89,29 +99,28 @@ export default function MemberProfileScreen() {
 
         {
             id: '2',
-            title: 'Bands',
-            icon: 'account-group',
-            type: 'material',
+            title: member?.role || 'Member',
+            icon: 'person',
+            type: 'ionicons',
             color: '#31C7B7',
         },
 
         {
             id: '3',
-            title: 'Artists',
-            icon: 'microphone',
-            type: 'fontawesome',
+            title: member?.joining_year || '--',
+            icon: 'calendar',
+            type: 'ionicons',
             color: '#FF5DA2',
         },
 
         {
             id: '4',
-            title: 'Albums',
-            icon: 'disc',
+            title: member?.its_no || 'ITS',
+            icon: 'card',
             type: 'ionicons',
             color: '#FFA726',
         },
     ];
-
     const renderIcon = (
         type: string,
         icon: string,
@@ -192,7 +201,7 @@ export default function MemberProfileScreen() {
             }}
         >
             <LinearGradient
-                colors={['#4B2CCF', '#6C4DFF']}
+                colors={['#2B145A', '#5B3DF5']}
                 style={styles.header}
             >
                 <TouchableOpacity
@@ -233,7 +242,7 @@ export default function MemberProfileScreen() {
                     </View>
 
                     <Text style={styles.bioText}>
-                        Scout Member Profile
+                        {member?.role?.toUpperCase() || 'MEMBER'} • {member?.instrument || 'No Instrument Assigned'}
                     </Text>
                 </View>
 
@@ -250,11 +259,11 @@ export default function MemberProfileScreen() {
                         />
 
                         <Text style={styles.statLabel}>
-                            Performance
+                            Role
                         </Text>
 
                         <Text style={styles.statValue}>
-                            Intermediate
+                            {member?.role || 'Member'}
                         </Text>
                     </View>
 
@@ -270,7 +279,7 @@ export default function MemberProfileScreen() {
                         </Text>
 
                         <Text style={styles.statValue}>
-                            {member?.joining_year || '2024'}
+                            {member?.joining_year || '--'}
                         </Text>
                     </View>
 
@@ -286,7 +295,7 @@ export default function MemberProfileScreen() {
                         </Text>
 
                         <Text style={styles.statValue}>
-                            {member?.instrument || 'Member'}
+                            {member?.instrument || 'Not Set'}
                         </Text>
                     </View>
 
@@ -316,28 +325,38 @@ export default function MemberProfileScreen() {
                         Personal Information
                     </Text>
 
-                    <InfoField
-                        icon="card-outline"
-                        label="ITS Number"
-                        value={member?.its_no}
-                    />
+                    {canViewPrivate && (
+                        <>
+                            <InfoField
+                                icon="card-outline"
+                                label="ITS Number"
+                                value={member?.its_no}
+                            />
+
+                            <InfoField
+                                icon="mail-outline"
+                                label="Email"
+                                value={member?.email_id}
+                            />
+
+                            <InfoField
+                                icon="call-outline"
+                                label="Phone"
+                                value={member?.phone}
+                            />
+
+                            <InfoField
+                                icon="people-outline"
+                                label="Parent Contact"
+                                value={member?.parent_contact}
+                            />
+                        </>
+                    )}
 
                     <InfoField
                         icon="person-outline"
                         label="Name"
                         value={member?.name}
-                    />
-
-                    <InfoField
-                        icon="mail-outline"
-                        label="Email"
-                        value={member?.email_id}
-                    />
-
-                    <InfoField
-                        icon="call-outline"
-                        label="Phone"
-                        value={member?.phone}
                     />
 
                     <InfoField
@@ -350,12 +369,6 @@ export default function MemberProfileScreen() {
                         icon="gift-outline"
                         label="Birth Date"
                         value={member?.birth_date}
-                    />
-
-                    <InfoField
-                        icon="people-outline"
-                        label="Parent Contact"
-                        value={member?.parent_contact}
                     />
 
                     <InfoField
@@ -393,7 +406,7 @@ export default function MemberProfileScreen() {
                     <View style={styles.attendanceRow}>
                         <View style={styles.attendanceCirclePurple}>
                             <Text style={styles.attendancePercent}>
-                                92%
+                                {attendance?.duties?.percentage || 0}%
                             </Text>
                         </View>
 
@@ -403,7 +416,7 @@ export default function MemberProfileScreen() {
                             </Text>
 
                             <Text style={styles.attendanceSub}>
-                                12 / 13
+                                {attendance?.duties?.present || 0} Present / {attendance?.duties?.total || 0} Total
                             </Text>
                         </View>
                     </View>
@@ -411,7 +424,7 @@ export default function MemberProfileScreen() {
                     <View style={styles.attendanceRow}>
                         <View style={styles.attendanceCircleGreen}>
                             <Text style={styles.attendancePercent}>
-                                88%
+                                {attendance?.practice?.percentage || 0}%
                             </Text>
                         </View>
 
@@ -421,7 +434,7 @@ export default function MemberProfileScreen() {
                             </Text>
 
                             <Text style={styles.attendanceSub}>
-                                7 / 8
+                                {attendance?.practice?.present || 0} Present / {attendance?.practice?.total || 0} Total
                             </Text>
                         </View>
                     </View>
@@ -429,7 +442,7 @@ export default function MemberProfileScreen() {
                     <View style={styles.attendanceRow}>
                         <View style={styles.attendanceCircleOrange}>
                             <Text style={styles.attendancePercent}>
-                                85%
+                                {attendance?.khidmat?.percentage || 0}%
                             </Text>
                         </View>
 
@@ -439,7 +452,7 @@ export default function MemberProfileScreen() {
                             </Text>
 
                             <Text style={styles.attendanceSub}>
-                                17 / 20
+                                {attendance?.khidmat?.present || 0} Present / {attendance?.khidmat?.total || 0} Total
                             </Text>
                         </View>
                     </View>
@@ -449,90 +462,111 @@ export default function MemberProfileScreen() {
 
                 <View style={styles.card}>
                     <Text style={styles.sectionTitle}>
-                        Permissions
+                        Organization Roles
                     </Text>
 
-                    <View style={styles.permissionRow}>
-                        <Text style={styles.permissionText}>
-                            Attendance
-                        </Text>
+                    <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                    >
 
-                        <Ionicons
-                            name={
-                                member?.permissions?.attendance
-                                    ? 'checkmark-circle'
-                                    : 'close-circle'
-                            }
-                            size={24}
-                            color={
-                                member?.permissions?.attendance
-                                    ? '#31C978'
-                                    : '#ff4d67'
-                            }
-                        />
-                    </View>
+                        {member?.permissions?.attendance && (
+                            <View style={styles.badgeCard}>
+                                <View style={styles.badgeIcon}>
+                                    <Ionicons
+                                        name="calendar"
+                                        size={28}
+                                        color="#31C7B7"
+                                    />
+                                </View>
 
-                    <View style={styles.permissionRow}>
-                        <Text style={styles.permissionText}>
-                            Fees
-                        </Text>
+                                <Text style={styles.badgeText}>
+                                    Attendance Team
+                                </Text>
+                            </View>
+                        )}
 
-                        <Ionicons
-                            name={
-                                member?.permissions?.fees
-                                    ? 'checkmark-circle'
-                                    : 'close-circle'
-                            }
-                            size={24}
-                            color={
-                                member?.permissions?.fees
-                                    ? '#31C978'
-                                    : '#ff4d67'
-                            }
-                        />
-                    </View>
+                        {member?.permissions?.members && (
+                            <View style={styles.badgeCard}>
+                                <View style={styles.badgeIcon}>
+                                    <Ionicons
+                                        name="people"
+                                        size={28}
+                                        color="#6C4DFF"
+                                    />
+                                </View>
 
-                    <View style={styles.permissionRow}>
-                        <Text style={styles.permissionText}>
-                            Inventory
-                        </Text>
+                                <Text style={styles.badgeText}>
+                                    Member Manager
+                                </Text>
+                            </View>
+                        )}
 
-                        <Ionicons
-                            name={
-                                member?.permissions?.inventory
-                                    ? 'checkmark-circle'
-                                    : 'close-circle'
-                            }
-                            size={24}
-                            color={
-                                member?.permissions?.inventory
-                                    ? '#31C978'
-                                    : '#ff4d67'
-                            }
-                        />
-                    </View>
+                        {member?.permissions?.fees && (
+                            <View style={styles.badgeCard}>
+                                <View style={styles.badgeIcon}>
+                                    <Ionicons
+                                        name="cash"
+                                        size={28}
+                                        color="#31C978"
+                                    />
+                                </View>
 
-                    <View style={styles.permissionRow}>
-                        <Text style={styles.permissionText}>
-                            Uniforms
-                        </Text>
+                                <Text style={styles.badgeText}>
+                                    Fees Team
+                                </Text>
+                            </View>
+                        )}
 
-                        <Ionicons
-                            name={
-                                member?.permissions?.uniforms
-                                    ? 'checkmark-circle'
-                                    : 'close-circle'
-                            }
-                            size={24}
-                            color={
-                                member?.permissions?.uniforms
-                                    ? '#31C978'
-                                    : '#ff4d67'
-                            }
-                        />
-                    </View>
+                        {member?.permissions?.inventory && (
+                            <View style={styles.badgeCard}>
+                                <View style={styles.badgeIcon}>
+                                    <Ionicons
+                                        name="cube"
+                                        size={28}
+                                        color="#FF8A34"
+                                    />
+                                </View>
+
+                                <Text style={styles.badgeText}>
+                                    Inventory Team
+                                </Text>
+                            </View>
+                        )}
+
+                        {member?.permissions?.uniforms && (
+                            <View style={styles.badgeCard}>
+                                <View style={styles.badgeIcon}>
+                                    <Ionicons
+                                        name="shirt"
+                                        size={28}
+                                        color="#FF5DA2"
+                                    />
+                                </View>
+
+                                <Text style={styles.badgeText}>
+                                    Uniform Team
+                                </Text>
+                            </View>
+                        )}
+
+                        {!member?.permissions?.attendance &&
+                            !member?.permissions?.members &&
+                            !member?.permissions?.fees &&
+                            !member?.permissions?.inventory &&
+                            !member?.permissions?.uniforms && (
+                                <Text
+                                    style={{
+                                        color: '#777',
+                                        fontSize: 16,
+                                        paddingVertical: 10,
+                                    }}
+                                >
+                                    No organization roles assigned
+                                </Text>
+                            )}
+                    </ScrollView>
                 </View>
-
                 {/* BADGES */}
 
                 <View style={styles.card}>
@@ -608,8 +642,8 @@ const styles = StyleSheet.create({
     },
 
     header: {
-        paddingTop: 40,
-        paddingBottom: 28,
+        paddingTop: 70,
+        paddingBottom: 40,
         paddingHorizontal: 20,
         borderBottomLeftRadius: 30,
         borderBottomRightRadius: 30,
@@ -670,17 +704,22 @@ const styles = StyleSheet.create({
     bioText: {
         marginTop: 14,
         color: '#eee',
-        fontSize: 16,
+        fontSize: 15,
+        textAlign: 'center',
+        lineHeight: 22,
+        paddingHorizontal: 30,
     },
 
     statsContainer: {
-        marginTop: 26,
+        marginTop: 28,
         paddingRight: 20,
     },
 
     statCard: {
-        width: 120,
+        width: 140,
         backgroundColor: 'rgba(255,255,255,0.12)',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.15)',
         borderRadius: 22,
         padding: 18,
         marginRight: 14,
@@ -696,14 +735,14 @@ const styles = StyleSheet.create({
 
     statValue: {
         color: '#fff',
-        fontSize: 18,
+        fontSize: 16,
         fontWeight: '700',
         marginTop: 8,
         textAlign: 'center',
     },
 
     mainContent: {
-        marginTop: -18,
+        marginTop: -28,
         paddingHorizontal: 16,
     },
 
@@ -712,6 +751,8 @@ const styles = StyleSheet.create({
         borderRadius: 24,
         padding: 18,
         marginBottom: 18,
+        borderWidth: 1,
+        borderColor: '#F3F0FF',
 
         shadowColor: '#000',
         shadowOffset: {

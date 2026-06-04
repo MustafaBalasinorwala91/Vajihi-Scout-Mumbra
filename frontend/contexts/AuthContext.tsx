@@ -1,4 +1,13 @@
-import React, { createContext, useState, useContext, useEffect, useCallback, ReactNode } from 'react';
+import React, {
+  createContext,
+  useState,
+  useContext,
+  useEffect,
+  useCallback,
+  ReactNode,
+} from 'react';
+
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface User {
   user_id: string;
@@ -18,6 +27,14 @@ interface User {
   joining_year?: string;
 
   uniform_size?: string;
+
+  permissions?: {
+    attendance: boolean;
+    inventory: boolean;
+    fees: boolean;
+    uniforms: boolean;
+    members: boolean;
+  };
 }
 
 interface AuthContextType {
@@ -31,35 +48,70 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+export function AuthProvider({
+  children,
+}: {
+  children: ReactNode;
+}) {
   const [user, setUser] = useState<User | null>(null);
+
   const [loading, setLoading] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  const isAuthenticated = !!user;
 
   const checkAuth = useCallback(async () => {
     try {
       const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
-      const response = await fetch(`${BACKEND_URL}/api/auth/me`, {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json'
+      // LOAD CACHED USER FIRST
+      const storedUser = await AsyncStorage.getItem('user');
+
+      if (storedUser) {
+        setUser(JSON.parse(storedUser));
+      }
+
+      const token = await AsyncStorage.getItem('session_token');
+
+      if (!token) {
+        setUser(null);
+        return;
+      }
+
+      const response = await fetch(
+        `${BACKEND_URL}/api/auth/me`,
+        {
+          method: 'GET',
+          credentials: 'include',
+
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
         }
-      });
+      );
 
       if (response.ok) {
         const userData = await response.json();
+
         setUser(userData);
-        setIsAuthenticated(true);
+
+        await AsyncStorage.setItem(
+          'user',
+          JSON.stringify(userData)
+        );
       } else {
+        await AsyncStorage.removeItem('session_token');
+        await AsyncStorage.removeItem('user');
+
         setUser(null);
-        setIsAuthenticated(false);
       }
     } catch (error) {
       console.error('Auth check failed:', error);
+
+      await AsyncStorage.removeItem('session_token');
+      await AsyncStorage.removeItem('user');
+
       setUser(null);
-      setIsAuthenticated(false);
     } finally {
       setLoading(false);
     }
@@ -68,19 +120,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = async () => {
     try {
       const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
+
+      const token = await AsyncStorage.getItem('session_token');
+
       await fetch(`${BACKEND_URL}/api/auth/logout`, {
         method: 'POST',
         credentials: 'include',
+
         headers: {
-          'Content-Type': 'application/json'
-        }
+          'Content-Type': 'application/json',
+          Authorization: token ? `Bearer ${token}` : '',
+        },
       });
+
+      await AsyncStorage.removeItem('session_token');
+      await AsyncStorage.removeItem('user');
+
       setUser(null);
-      setIsAuthenticated(false);
     } catch (error) {
       console.error('Logout failed:', error);
+
+      await AsyncStorage.removeItem('session_token');
+      await AsyncStorage.removeItem('user');
+
       setUser(null);
-      setIsAuthenticated(false);
     }
   };
 
@@ -89,7 +152,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [checkAuth]);
 
   return (
-    <AuthContext.Provider value={{ user, loading, isAuthenticated, setUser, logout, checkAuth }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        isAuthenticated,
+        setUser,
+        logout,
+        checkAuth,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -97,8 +169,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
+
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error(
+      'useAuth must be used within an AuthProvider'
+    );
   }
+
   return context;
 }

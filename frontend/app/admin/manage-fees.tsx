@@ -61,7 +61,6 @@ export default function ManageFeesScreen() {
 
         const data = await response.json();
 
-        console.log('USERS API RESPONSE:', data);
 
         const usersArray = data.users || data;
 

@@ -24,6 +24,7 @@ import {
     useLocalSearchParams,
     useRouter,
 } from 'expo-router';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function AttendanceMembersScreen() {
 
@@ -31,6 +32,9 @@ export default function AttendanceMembersScreen() {
         process.env.EXPO_PUBLIC_BACKEND_URL;
 
     const router = useRouter();
+    const { user } = useAuth();
+    const canManageAttendance =
+        user?.permissions?.attendance;
 
     const [members, setMembers] =
         useState<any[]>([]);
@@ -39,6 +43,8 @@ export default function AttendanceMembersScreen() {
         useState<any[]>([]);
 
     const [loading, setLoading] =
+        useState(false);
+    const [saving, setSaving] =
         useState(false);
 
     const [search, setSearch] =
@@ -50,9 +56,36 @@ export default function AttendanceMembersScreen() {
     const {
         attendanceType,
         selectedDate,
+        editMode,
     } = useLocalSearchParams();
 
     // FETCH MEMBERS
+    const loadExistingAttendance = async () => {
+
+        try {
+
+            const response = await fetch(
+                `${BACKEND_URL}/api/attendance/history-details/${attendanceType}/${selectedDate}`
+            );
+
+            const data = await response.json();
+
+            const map: any = {};
+
+            data.forEach((record: any) => {
+
+                map[record.user_id] =
+                    record.status;
+
+            });
+
+            setAttendanceMap(map);
+
+        } catch (error) {
+
+            console.error(error);
+        }
+    };
     const fetchMembers = async () => {
 
         try {
@@ -69,6 +102,10 @@ export default function AttendanceMembersScreen() {
             const data = await response.json();
 
             // SORT ALPHABETICALLY
+            if (!Array.isArray(data)) {
+                return;
+            }
+
             const sorted = data.sort(
                 (a: any, b: any) =>
                     a.name.localeCompare(b.name)
@@ -80,7 +117,7 @@ export default function AttendanceMembersScreen() {
 
         } catch (error) {
 
-            console.log(error);
+            console.error(error);
 
         } finally {
 
@@ -90,7 +127,15 @@ export default function AttendanceMembersScreen() {
     };
 
     useEffect(() => {
+
         fetchMembers();
+
+        if (editMode === 'true') {
+
+            loadExistingAttendance();
+
+        }
+
     }, []);
 
     // SEARCH
@@ -121,8 +166,12 @@ export default function AttendanceMembersScreen() {
 
     // SAVE ATTENDANCE
     const saveAttendance = async () => {
+        if (saving) {
+            return;
+        }
 
         try {
+            setSaving(true);
 
             const AsyncStorage =
                 require('@react-native-async-storage/async-storage').default;
@@ -158,6 +207,15 @@ export default function AttendanceMembersScreen() {
                             member.user_id
                             ],
                     }));
+            if (records.length === 0) {
+
+                Alert.alert(
+                    'No Attendance Marked',
+                    'Please mark at least one member.'
+                );
+
+                return;
+            }
 
             const response = await fetch(
                 `${BACKEND_URL}/api/attendance/bulk`,
@@ -208,14 +266,20 @@ export default function AttendanceMembersScreen() {
 
         } catch (error) {
 
-            console.log(error);
+            console.error(error);
 
             Alert.alert(
                 'Error',
                 'Attendance save failed'
             );
         }
+        finally {
+
+            setSaving(false);
+
+        }
     };
+
 
     return (
 
@@ -321,55 +385,105 @@ export default function AttendanceMembersScreen() {
 
 
                                     {/* PRESENT */}
-                                    <TouchableOpacity
-                                        style={[
-                                            styles.actionBtn,
+                                    <View style={styles.actionsRow}>
 
-                                            attendanceMap[
-                                            member.user_id
-                                            ] ===
-                                            'present' &&
-                                            styles.presentBtn,
-                                        ]}
-                                        onPress={() =>
-                                            updateAttendance(
-                                                member.user_id,
-                                                'present'
-                                            )
-                                        }
-                                    >
+                                        <TouchableOpacity
 
-                                        <Text style={styles.actionText}>
-                                            ✅
-                                        </Text>
+                                            disabled={!canManageAttendance}
 
-                                    </TouchableOpacity>
+                                            style={[
+                                                styles.statusButton,
 
-                                    {/* ABSENT */}
-                                    <TouchableOpacity
-                                        style={[
-                                            styles.actionBtn,
+                                                attendanceMap[
+                                                    member.user_id
+                                                ] === 'present'
+                                                    ? styles.presentBtn
+                                                    : styles.inactiveBtn,
 
-                                            attendanceMap[
-                                            member.user_id
-                                            ] ===
-                                            'absent' &&
-                                            styles.absentBtn,
-                                        ]}
-                                        onPress={() =>
-                                            updateAttendance(
-                                                member.user_id,
-                                                'absent'
-                                            )
-                                        }
-                                    >
+                                                !canManageAttendance && {
+                                                    opacity: 0.55,
+                                                },
+                                            ]}
 
-                                        <Text style={styles.actionText}>
-                                            ❌
-                                        </Text>
+                                            onPress={() => {
 
-                                    </TouchableOpacity>
+                                                if (!canManageAttendance) {
+                                                    return;
+                                                }
 
+                                                updateAttendance(
+                                                    member.user_id,
+                                                    'present'
+                                                );
+
+                                            }}
+                                        >
+
+                                            <Ionicons
+                                                name="checkmark-circle"
+                                                size={18}
+                                                color={
+                                                    attendanceMap[member.user_id] === 'present'
+                                                        ? '#FFFFFF'
+                                                        : '#37C978'
+                                                }
+                                            />
+
+                                            <Text style={styles.statusText}>
+                                                Present
+                                            </Text>
+
+                                        </TouchableOpacity>
+
+                                        <TouchableOpacity
+
+                                            disabled={!canManageAttendance}
+
+                                            style={[
+                                                styles.statusButton,
+
+                                                attendanceMap[
+                                                    member.user_id
+                                                ] === 'absent'
+                                                    ? styles.absentBtn
+                                                    : styles.inactiveBtn,
+
+                                                !canManageAttendance && {
+                                                    opacity: 0.55,
+                                                },
+                                            ]}
+
+                                            onPress={() => {
+
+                                                if (!canManageAttendance) {
+                                                    return;
+                                                }
+
+                                                updateAttendance(
+                                                    member.user_id,
+                                                    'absent'
+                                                );
+
+                                            }}
+                                        >
+
+                                            <Ionicons
+                                                name="close-circle"
+                                                size={18}
+                                                color={
+                                                    attendanceMap[member.user_id] === 'absent'
+                                                        ? '#FFFFFF'
+                                                        : '#FF5B5B'
+                                                }
+                                            />
+
+                                            <Text style={styles.statusText}>
+                                                Absent
+                                            </Text>
+
+                                        </TouchableOpacity>
+
+                                    </View>
                                 </View>
 
                             </View>
@@ -377,23 +491,56 @@ export default function AttendanceMembersScreen() {
                     )
                 )}
                 <TouchableOpacity
-                    style={styles.saveButton}
-                    onPress={saveAttendance}
+
+                    disabled={!canManageAttendance || saving}
+
+                    style={[
+                        styles.saveButton,
+
+                        (!canManageAttendance || saving) && {
+                            opacity: 0.55,
+                        },
+                    ]}
+
+                    onPress={() => {
+
+                        if (!canManageAttendance) {
+
+                            Alert.alert(
+                                'Access Restricted',
+                                'You only have view access for attendance.'
+                            );
+
+                            return;
+                        }
+
+                        saveAttendance();
+
+                    }}
                 >
 
                     <LinearGradient
-                        colors={['#6C4DFF', '#5B3DF5']}
+                        colors={
+                            canManageAttendance
+                                ? ['#6C4DFF', '#5B3DF5']
+                                : ['#A8A8A8', '#8E8E8E']
+                        }
                         style={styles.saveGradient}
                     >
 
                         <Text style={styles.saveText}>
-                            Save Attendance
+
+                            {saving
+                                ? 'Saving Attendance...'
+                                : canManageAttendance
+                                    ? 'Save Attendance'
+                                    : 'View Only Access'}
+
                         </Text>
 
                     </LinearGradient>
 
                 </TouchableOpacity>
-
 
             </ScrollView>
 
@@ -503,15 +650,23 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
 
-    actionBtn: {
-        width: 42,
-        height: 42,
-        borderRadius: 14,
+    statusButton: {
 
-        backgroundColor: '#ECECF2',
+        flexDirection: 'row',
+
+        alignItems: 'center',
 
         justifyContent: 'center',
-        alignItems: 'center',
+
+        height: 42,
+
+        paddingHorizontal: 14,
+
+        borderRadius: 14,
+    },
+
+    inactiveBtn: {
+        backgroundColor: '#F1ECFF',
     },
 
     presentBtn: {
@@ -519,11 +674,14 @@ const styles = StyleSheet.create({
     },
 
     absentBtn: {
-        backgroundColor: '#FF3B30',
+        backgroundColor: '#FF5B5B',
     },
 
-    actionText: {
-        fontSize: 18,
+    statusText: {
+        color: '#878787',
+        fontSize: 13,
+        fontWeight: '700',
+        marginLeft: 4,
     },
 
     saveButton: {

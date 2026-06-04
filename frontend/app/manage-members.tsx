@@ -84,6 +84,7 @@ export default function ManageMembersScreen() {
             );
 
             const data = await response.json();
+            console.log(data);
 
             const sortedMembers = data.sort(
                 (a: any, b: any) =>
@@ -153,8 +154,11 @@ export default function ManageMembersScreen() {
                         {item.name}
                     </Text>
 
-                    <Text style={styles.memberDetails}>
-                        {item.role} • {item.instrument || 'No Instrument'}
+                    <Text
+                        style={styles.memberDetails}
+                        numberOfLines={1}
+                    >
+                        {item.role} • {item.instrument || 'None'}
                     </Text>
                 </View>
             </View>
@@ -253,6 +257,8 @@ export default function ManageMembersScreen() {
                 keyExtractor={(item) => item.user_id}
                 renderItem={renderMember}
                 showsVerticalScrollIndicator={false}
+                initialNumToRender={10}
+                removeClippedSubviews={true}
                 contentContainerStyle={{
                     paddingBottom: 120,
                 }}
@@ -294,7 +300,7 @@ const styles = StyleSheet.create({
     backButton: {
         width: 56,
         height: 56,
-        borderRadius: 20,
+        borderRadius: 18,
         backgroundColor: 'rgba(255,255,255,0.15)',
         justifyContent: 'center',
         alignItems: 'center',
@@ -303,13 +309,13 @@ const styles = StyleSheet.create({
 
     headerTitle: {
         color: '#fff',
-        fontSize: 38,
+        fontSize: 34,
         fontWeight: 'bold',
     },
 
     headerSubtitle: {
         color: 'rgba(255,255,255,0.8)',
-        fontSize: 18,
+        fontSize: 16,
         marginTop: 4,
     },
 
@@ -320,19 +326,19 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         paddingHorizontal: 20,
-        height: 72,
+        height: 62,
     },
 
     searchInput: {
         flex: 1,
         marginLeft: 14,
-        fontSize: 18,
+        fontSize: 16,
         color: '#000',
     },
 
     memberCard: {
         backgroundColor: '#fff',
-        marginHorizontal: 24,
+        marginHorizontal: 20,
         marginBottom: 18,
         borderRadius: 28,
         padding: 20,
@@ -341,9 +347,13 @@ const styles = StyleSheet.create({
         alignItems: 'center',
 
         shadowColor: '#000',
-        shadowOpacity: 0.08,
-        shadowRadius: 10,
-        elevation: 4,
+        shadowOpacity: 0.05,
+        shadowRadius: 6,
+        shadowOffset: {
+            width: 0,
+            height: 3,
+        },
+        elevation: 2,
     },
 
     leftSection: {
@@ -356,35 +366,35 @@ const styles = StyleSheet.create({
         width: 78,
         height: 78,
         borderRadius: 39,
+        borderWidth: 2,
+        borderColor: '#F3F0FF',
     },
 
     avatarPlaceholder: {
-        width: 64,
-        height: 64,
-        borderRadius: 32,
+        width: 78,
+        height: 78,
+        borderRadius: 39,
         backgroundColor: '#EEE7FF',
         justifyContent: 'center',
         alignItems: 'center',
     },
 
     memberInfo: {
-        marginLeft: 16,
+        marginLeft: 14,
         flex: 1,
     },
 
     memberName: {
-        fontSize: 18,
+        fontSize: 16,
         fontWeight: '700',
         color: '#111',
     },
 
     memberDetails: {
-        marginTop: 6,
-        fontSize: 14,
+        marginTop: 4,
+        fontSize: 13,
         color: '#666',
-        lineHeight: 20,
     },
-
     actions: {
         flexDirection: 'row',
         gap: 12,
@@ -393,7 +403,7 @@ const styles = StyleSheet.create({
     profileButton: {
         width: 58,
         height: 58,
-        borderRadius: 20,
+        borderRadius: 18,
         backgroundColor: '#4CAF50',
         justifyContent: 'center',
         alignItems: 'center',
@@ -402,7 +412,7 @@ const styles = StyleSheet.create({
     settingsButton: {
         width: 58,
         height: 58,
-        borderRadius: 20,
+        borderRadius: 18,
         backgroundColor: '#6C4EFF',
         justifyContent: 'center',
         alignItems: 'center',

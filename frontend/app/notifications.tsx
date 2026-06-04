@@ -1,26 +1,31 @@
 import React, { useEffect, useState } from 'react';
-
+import { TouchableOpacity } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
     View,
     Text,
     FlatList,
     StyleSheet,
     StatusBar,
+    RefreshControl,
 } from 'react-native';
 
-import { SafeAreaView } from 'react-native-safe-area-context';
-
 import axios from 'axios';
-
+import { useRouter } from 'expo-router';
 export default function NotificationsScreen() {
 
+    const router = useRouter();
     const [notifications, setNotifications] = useState<any[]>([]);
+    const [refreshing, setRefreshing] =
+        useState(false);
     const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
     useEffect(() => {
-        loadNotifications();
-    }, []);
 
+        loadNotifications();
+
+    }, []);
     const loadNotifications = async () => {
 
         try {
@@ -32,35 +37,82 @@ export default function NotificationsScreen() {
                 }
             );
 
-            setNotifications(response.data);
+            const sortedNotifications =
+                response.data.sort(
+                    (a: any, b: any) =>
+                        new Date(b.created_at).getTime() -
+                        new Date(a.created_at).getTime()
+                );
+
+            setNotifications(sortedNotifications);
 
         } catch (error) {
 
-            console.log(error);
+            console.error(error);
         }
+    };
+    const onRefresh = async () => {
+
+        setRefreshing(true);
+
+        await loadNotifications();
+
+        setRefreshing(false);
     };
 
     return (
 
-        <SafeAreaView style={styles.container}>
+        <View style={styles.container}>
 
             <StatusBar
                 barStyle="light-content"
             />
 
-            <View style={styles.header}>
+            <LinearGradient
+                colors={['#2B145A', '#5B3DF5']}
+                style={styles.header}
+            >
 
-                <Text style={styles.headerTitle}>
-                    Notifications
-                </Text>
+                <View style={styles.headerTop}>
 
-                <Text style={styles.headerSubtitle}>
-                    Latest attendance updates
-                </Text>
+                    <TouchableOpacity
+                        activeOpacity={0.8}
+                        style={styles.backButton}
+                        onPress={() => router.back()}
+                    >
+                        <Ionicons
+                            name="arrow-back"
+                            size={22}
+                            color="#fff"
+                        />
+                    </TouchableOpacity>
 
-            </View>
+                    <View style={styles.headerTextWrapper}>
+
+                        <Text style={styles.headerTitle}>
+                            Notifications
+                        </Text>
+
+                        <Text style={styles.headerSubtitle}>
+                            Latest updates and notifications
+                        </Text>
+
+                    </View>
+
+                </View>
+
+            </LinearGradient>
 
             <FlatList
+
+                refreshControl={
+                    <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={onRefresh}
+                        colors={['#5B3DF5']}
+                        tintColor="#5B3DF5"
+                    />
+                }
                 data={notifications}
 
                 keyExtractor={(item) =>
@@ -73,17 +125,53 @@ export default function NotificationsScreen() {
                     paddingTop: 20,
                     paddingBottom: 40,
                 }}
+                ListEmptyComponent={
+                    <View style={styles.emptyWrapper}>
+
+                        <Ionicons
+                            name="notifications-off-outline"
+                            size={70}
+                            color="#C7C7C7"
+                        />
+
+                        <Text style={styles.emptyTitle}>
+                            No Notifications Yet
+                        </Text>
+
+                        <Text style={styles.emptySubtext}>
+                            Organization updates will appear here
+                        </Text>
+
+                    </View>
+                }
 
                 renderItem={({ item }) => (
 
-                    <View style={styles.card}>
-
+                    <TouchableOpacity
+                        activeOpacity={0.85}
+                        style={styles.card}
+                    >
                         <View style={styles.iconContainer}>
 
                             <Text style={styles.icon}>
-                                🔔
-                            </Text>
 
+                                {
+                                    item.title?.includes('Attendance')
+                                        ? '📅'
+
+                                        : item.title?.includes('Fee')
+                                            ? '💰'
+
+                                            : item.title?.includes('Permission')
+                                                ? '🛡'
+
+                                                : item.title?.includes('Profile')
+                                                    ? '👤'
+
+                                                    : '🔔'
+                                }
+
+                            </Text>
                         </View>
 
                         <View style={styles.content}>
@@ -95,14 +183,22 @@ export default function NotificationsScreen() {
                             <Text style={styles.message}>
                                 {item.message}
                             </Text>
+                            <Text style={styles.timeText}>
+                                {new Date(item.created_at).toLocaleDateString()}
+                                {' • '}
+                                {new Date(item.created_at).toLocaleTimeString([], {
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                })}
+                            </Text>
 
                         </View>
 
-                    </View>
+                    </TouchableOpacity>
                 )}
             />
 
-        </SafeAreaView>
+        </View>
     );
 }
 
@@ -110,37 +206,62 @@ const styles = StyleSheet.create({
 
     container: {
         flex: 1,
-        backgroundColor: '#F4F3F8',
+        backgroundColor: '#F5F5F5',
     },
 
     header: {
-        backgroundColor: '#5B3DF5',
-
-        paddingHorizontal: 24,
-        paddingTop: 20,
+        paddingTop: 70,
         paddingBottom: 30,
+        paddingHorizontal: 24,
 
         borderBottomLeftRadius: 34,
         borderBottomRightRadius: 34,
     },
 
+    headerTop: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 16,
+    },
+
+    headerTextWrapper: {
+        flex: 1,
+    },
+
     headerTitle: {
-        color: '#fff',
-        fontSize: 34,
+        fontSize: 30,
         fontWeight: '800',
+        color: '#fff',
     },
 
     headerSubtitle: {
-        color: '#DDD6FF',
-        fontSize: 17,
-        marginTop: 8,
+        marginTop: 6,
+        fontSize: 16,
+        color: 'rgba(255,255,255,0.8)',
+    },
+
+    backButton: {
+        width: 44,
+        height: 44,
+
+        borderRadius: 14,
+
+        backgroundColor: 'rgba(255,255,255,0.18)',
+
+        justifyContent: 'center',
+        alignItems: 'center',
+
+        marginTop: 2,
     },
 
     card: {
         backgroundColor: '#fff',
-
+        transform: [{ scale: 1 }],
+        overflow: 'hidden',
         marginHorizontal: 20,
         marginBottom: 18,
+        borderWidth: 1,
+        borderColor: '#F1ECFF',
 
         borderRadius: 28,
 
@@ -177,6 +298,25 @@ const styles = StyleSheet.create({
     content: {
         flex: 1,
     },
+    emptyWrapper: {
+        marginTop: 120,
+        paddingHorizontal: 30,
+        alignItems: 'center',
+    },
+
+    emptyTitle: {
+        marginTop: 18,
+        fontSize: 20,
+        fontWeight: '700',
+        color: '#444',
+    },
+
+    emptySubtext: {
+        marginTop: 8,
+        fontSize: 14,
+        textAlign: 'center',
+        color: '#888',
+    },
 
     cardTitle: {
         fontSize: 18,
@@ -191,5 +331,10 @@ const styles = StyleSheet.create({
 
         lineHeight: 24,
         fontSize: 15,
+    },
+    timeText: {
+        marginTop: 8,
+        fontSize: 12,
+        color: '#999',
     },
 });

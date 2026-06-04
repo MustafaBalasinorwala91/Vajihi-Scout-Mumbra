@@ -388,8 +388,6 @@ async def signup(signup_data: SignupRequest):
 
     # AUTO ADMIN CHECK
 
-    is_admin = signup_data.its_no == "vajihiadmin@53"
-
     new_user = {
         "user_id": user_id,
         "its_no": signup_data.its_no,
@@ -399,13 +397,13 @@ async def signup(signup_data: SignupRequest):
         "phone": signup_data.phone,
         "email_id": signup_data.email_id,
         "picture": None,
-        "role": "admin" if is_admin else "member",
+        "role": "member",
         "permissions": {
-            "attendance": True if is_admin else False,
-            "inventory": True if is_admin else False,
-            "fees": True if is_admin else False,
-            "uniforms": True if is_admin else False,
-            "members": True if is_admin else False,
+            "attendance": False,
+            "inventory": False,
+            "fees": False,
+            "uniforms": False,
+            "members": False,
         },
         "tag": None,
         "security_question": signup_data.security_question,
@@ -464,6 +462,7 @@ async def login(login_data: LoginRequest, response: Response):
             "email_id": user_doc.get("email_id"),
             "picture": user_doc.get("picture"),
             "role": user_doc["role"],
+            "permissions": user_doc.get("permissions", {}),
             "tag": user_doc.get("tag"),
             "created_at": user_doc["created_at"],
         },
@@ -695,11 +694,20 @@ async def update_profile(
             {"$set": update_dict},
         )
 
-    # RETURN UPDATED USER
+        # RETURN UPDATED USER
+
     user_doc = await db.users.find_one(
         {"user_id": current_user.user_id},
         {"_id": 0, "password_hash": 0},
     )
+
+    notification = NotificationRecord(
+        user_id=current_user.user_id,
+        title="Profile Updated",
+        message="Your profile information was updated successfully",
+    )
+
+    await db.notifications.insert_one(notification.dict())
 
     return User(**user_doc)
 
@@ -717,8 +725,6 @@ async def get_all_users(current_user: User = Depends(get_current_user)):
 @api_router.get("/attendance/members")
 async def get_attendance_members(current_user: User = Depends(get_current_user)):
 
-    await require_permission("attendance", current_user)
-
     members = await db.users.find(
         {},
         {
@@ -727,6 +733,7 @@ async def get_attendance_members(current_user: User = Depends(get_current_user))
             "name": 1,
             "role": 1,
             "instrument": 1,
+            "picture": 1,
             "permissions": 1,
         },
     ).to_list(1000)
@@ -848,6 +855,24 @@ async def get_my_notifications(current_user: User = Depends(get_current_user)):
     return notifications
 
 
+@api_router.put("/notifications/read-all")
+async def mark_notifications_read(current_user: User = Depends(get_current_user)):
+
+    await db.notifications.update_many(
+        {
+            "user_id": current_user.user_id,
+            "is_read": False,
+        },
+        {
+            "$set": {
+                "is_read": True,
+            }
+        },
+    )
+
+    return {"message": "Notifications marked as read"}
+
+
 @api_router.get("/attendance/my/{attendance_type}")
 async def get_my_attendance(
     attendance_type: str,
@@ -877,6 +902,89 @@ async def get_my_attendance(
         "present": present,
         "absent": absent,
         "percentage": round(percentage, 2),
+    }
+
+
+@api_router.get("/attendance/my-history/{attendance_type}")
+async def get_my_attendance_history(
+    attendance_type: str, current_user: User = Depends(get_current_user)
+):
+    """Get attendance history only for sessions where current user was marked"""
+
+    # FIND CURRENT USER RECORDS
+    my_records = await db.attendance.find(
+        {
+            "user_id": current_user.user_id,
+            "attendance_type": attendance_type,
+        },
+        {
+            "_id": 0,
+            "date": 1,
+        },
+    ).to_list(5000)
+
+    # EXTRACT UNIQUE DATES
+    dates = list(set([record["date"] for record in my_records]))
+
+    result = []
+
+    # BUILD SESSION STATS
+    for date in dates:
+
+        session_records = await db.attendance.find(
+            {
+                "attendance_type": attendance_type,
+                "date": date,
+            },
+            {"_id": 0},
+        ).to_list(1000)
+
+        present = len([r for r in session_records if r["status"] == "present"])
+
+        absent = len([r for r in session_records if r["status"] == "absent"])
+
+        result.append(
+            {
+                "date": date,
+                "attendance_type": attendance_type,
+                "present": present,
+                "absent": absent,
+            }
+        )
+
+    # SORT LATEST FIRST
+    result.sort(key=lambda x: x["date"], reverse=True)
+
+    return result
+
+
+@api_router.get("/attendance/my-stats/{attendance_type}")
+async def get_my_attendance_stats(
+    attendance_type: str, current_user: User = Depends(get_current_user)
+):
+    """Get attendance stats for current logged-in user"""
+
+    records = await db.attendance.find(
+        {
+            "user_id": current_user.user_id,
+            "attendance_type": attendance_type,
+        },
+        {"_id": 0},
+    ).to_list(5000)
+
+    present = len([r for r in records if r["status"] == "present"])
+
+    absent = len([r for r in records if r["status"] == "absent"])
+
+    total = present + absent
+
+    percentage = round((present / total) * 100) if total > 0 else 0
+
+    return {
+        "present": present,
+        "absent": absent,
+        "total": total,
+        "percentage": percentage,
     }
 
 
@@ -916,12 +1024,8 @@ async def get_user_attendance(
 
 
 @api_router.delete("/attendance/{attendance_id}")
-async def delete_attendance(
-    attendance_id: str, current_user: User = Depends(get_current_user)
-):
+async def delete_attendance(attendance_id: str, admin: User = Depends(require_admin)):
     """Delete attendance record"""
-
-    await require_permission("attendance", current_user)
 
     result = await db.attendance.delete_one({"attendance_id": attendance_id})
 
@@ -931,8 +1035,25 @@ async def delete_attendance(
     return {"message": "Attendance record deleted successfully"}
 
 
+@api_router.delete("/attendance/session/{attendance_type}/{date}")
+async def delete_attendance_session(
+    attendance_type: str, date: str, admin: User = Depends(require_admin)
+):
+
+    result = await db.attendance.delete_many(
+        {
+            "attendance_type": attendance_type,
+            "date": date,
+        }
+    )
+
+    return {"message": f"Deleted {result.deleted_count} attendance records"}
+
+
 @api_router.get("/attendance/dates/{attendance_type}")
-async def get_attendance_dates(attendance_type: str):
+async def get_attendance_dates(
+    attendance_type: str, current_user: User = Depends(get_current_user)
+):
 
     records = await db.attendance.find(
         {"attendance_type": attendance_type}, {"_id": 0}
@@ -947,6 +1068,45 @@ async def get_attendance_dates(attendance_type: str):
                 "date": record["date"],
                 "status": record["status"],
                 "user_id": record["user_id"],
+            }
+        )
+
+    return result
+
+
+@api_router.get("/attendance/history-details/{attendance_type}/{date}")
+async def get_attendance_history_details(
+    attendance_type: str, date: str, current_user: User = Depends(get_current_user)
+):
+
+    records = await db.attendance.find(
+        {
+            "attendance_type": attendance_type,
+            "date": date,
+        },
+        {"_id": 0},
+    ).to_list(1000)
+
+    result = []
+
+    for record in records:
+
+        user = await db.users.find_one(
+            {"user_id": record["user_id"]},
+            {
+                "_id": 0,
+                "name": 1,
+                "role": 1,
+            },
+        )
+
+        result.append(
+            {
+                "attendance_id": record["attendance_id"],
+                "user_id": record["user_id"],
+                "name": user["name"] if user else "Unknown",
+                "role": user["role"] if user else "",
+                "status": record["status"],
             }
         )
 
@@ -1080,11 +1240,41 @@ async def get_all_fees(current_user: User = Depends(get_current_user)):
     return fees
 
 
-@api_router.delete("/fees/{fee_id}")
-async def delete_fee(fee_id: str, current_user: User = Depends(get_current_user)):
-    """Delete fee record"""
-
+@api_router.get("/fees/all-detailed")
+async def get_all_fees_detailed(current_user: User = Depends(get_current_user)):
     await require_permission("fees", current_user)
+
+    fees = await db.fees.find({}, {"_id": 0}).sort("month", -1).to_list(1000)
+
+    result = []
+
+    for fee in fees:
+
+        user = await db.users.find_one(
+            {"user_id": fee["user_id"]},
+            {
+                "_id": 0,
+                "name": 1,
+                "its_no": 1,
+                "role": 1,
+            },
+        )
+
+        result.append(
+            {
+                **fee,
+                "member_name": user.get("name", "Unknown") if user else "Unknown",
+                "its_no": user.get("its_no") if user else None,
+                "role": user.get("role") if user else None,
+            }
+        )
+
+    return result
+
+
+@api_router.delete("/fees/{fee_id}")
+async def delete_fee(fee_id: str, admin: User = Depends(require_admin)):
+    """Delete fee record"""
 
     result = await db.fees.delete_one({"fee_id": fee_id})
 
@@ -1130,6 +1320,29 @@ async def generate_monthly_fees(
         "total_members": len(users),
         "created": created_count,
     }
+
+
+@api_router.post("/fees/send-reminders")
+async def send_fee_reminders(current_user: User = Depends(get_current_user)):
+    await require_permission("fees", current_user)
+
+    due_fees = await db.fees.find({"status": "due"}, {"_id": 0}).to_list(1000)
+
+    sent = 0
+
+    for fee in due_fees:
+
+        notification = NotificationRecord(
+            user_id=fee["user_id"],
+            title="Fee Reminder",
+            message=f"Your fee for {fee['month']} is still pending.",
+        )
+
+        await db.notifications.insert_one(notification.dict())
+
+        sent += 1
+
+    return {"message": f"{sent} reminders sent"}
 
 
 # ============= INVENTORY ENDPOINTS =============
@@ -1191,12 +1404,8 @@ async def update_inventory_item(
 
 
 @api_router.delete("/inventory/{item_id}")
-async def delete_inventory_item(
-    item_id: str, current_user: User = Depends(get_current_user)
-):
+async def delete_inventory_item(item_id: str, admin: User = Depends(require_admin)):
     """Delete inventory item"""
-
-    await require_permission("inventory", current_user)
 
     await db.inventory.delete_one({"item_id": item_id})
 
@@ -1262,12 +1471,8 @@ async def update_uniform_item(
 
 
 @api_router.delete("/uniforms/{uniform_id}")
-async def delete_uniform_item(
-    uniform_id: str, current_user: User = Depends(get_current_user)
-):
+async def delete_uniform_item(uniform_id: str, admin: User = Depends(require_admin)):
     """Delete uniform item"""
-
-    await require_permission("uniforms", current_user)
 
     await db.uniforms.delete_one({"uniform_id": uniform_id})
 
@@ -1281,7 +1486,8 @@ async def delete_uniform_item(
 
 @api_router.put("/admin/update-permissions")
 async def update_user_permissions(
-    data: UpdatePermissionsRequest, current_user: User = Depends(get_current_user)
+    data: UpdatePermissionsRequest,
+    current_user: User = Depends(get_current_user),
 ):
     """Update user permissions"""
 
@@ -1291,19 +1497,50 @@ async def update_user_permissions(
     if data.user_id == current_user.user_id:
 
         raise HTTPException(
-            status_code=400, detail="Cannot modify your own permissions"
+            status_code=400,
+            detail="Cannot modify your own permissions",
         )
 
     user = await db.users.find_one({"user_id": data.user_id})
 
     if not user:
 
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(
+            status_code=404,
+            detail="User not found",
+        )
 
     await db.users.update_one(
         {"user_id": data.user_id},
         {"$set": {"permissions": data.permissions.model_dump()}},
     )
+
+    granted_permissions = []
+
+    if data.permissions.attendance:
+        granted_permissions.append("Attendance")
+
+    if data.permissions.members:
+        granted_permissions.append("Members")
+
+    if data.permissions.fees:
+        granted_permissions.append("Fees")
+
+    if data.permissions.inventory:
+        granted_permissions.append("Inventory")
+
+    if data.permissions.uniforms:
+        granted_permissions.append("Uniforms")
+
+    permission_text = ", ".join(granted_permissions)
+
+    notification = NotificationRecord(
+        user_id=data.user_id,
+        title="Permission Updated",
+        message=f"You were granted access to: {permission_text}",
+    )
+
+    await db.notifications.insert_one(notification.dict())
 
     return {"message": "Permissions updated successfully"}
 
@@ -1339,13 +1576,11 @@ async def assign_badge(
 
 
 @api_router.delete("/admin/delete-user/{user_id}")
-async def delete_user(user_id: str, current_user: User = Depends(get_current_user)):
+async def delete_user(user_id: str, admin: User = Depends(require_admin)):
     """Delete a user"""
 
-    await require_permission("members", current_user)
-
     # Prevent self delete
-    if user_id == current_user.user_id:
+    if user_id == admin.user_id:
 
         raise HTTPException(status_code=400, detail="Cannot delete your own account")
 
@@ -1374,7 +1609,9 @@ async def get_user_profile(
 ):
     """Get detailed user profile"""
 
-    await require_permission("members", current_user)
+    can_view_private = current_user.role == "admin" or (
+        current_user.permissions and current_user.permissions.members
+    )
 
     user_doc = await db.users.find_one(
         {"user_id": user_id}, {"_id": 0, "password_hash": 0}
@@ -1392,6 +1629,10 @@ async def get_user_profile(
 
     khidmat_attendance = await db.attendance.find(
         {"user_id": user_id, "attendance_type": "khidmat"}, {"_id": 0}
+    ).to_list(1000)
+
+    duties_attendance = await db.attendance.find(
+        {"user_id": user_id, "attendance_type": "duties"}, {"_id": 0}
     ).to_list(1000)
 
     # FEES
@@ -1439,13 +1680,38 @@ async def get_user_profile(
     khidmat_percentage = (
         (khidmat_present / khidmat_total * 100) if khidmat_total > 0 else 0
     )
+    duties_total = len(duties_attendance)
 
+    duties_present = len([r for r in duties_attendance if r["status"] == "present"])
+
+    duties_percentage = (duties_present / duties_total * 100) if duties_total > 0 else 0
     total_due = sum(f["amount"] for f in fees if f["status"] == "due")
 
     total_paid = sum(f["amount"] for f in fees if f["status"] == "paid")
+    public_user = {
+        "user_id": user_doc.get("user_id"),
+        "name": user_doc.get("name"),
+        "role": user_doc.get("role"),
+        "picture": user_doc.get("picture"),
+        "instrument": user_doc.get("instrument"),
+        "joining_year": user_doc.get("joining_year"),
+        "badge": user_doc.get("badge"),
+    }
+    if can_view_private:
+        public_user.update(
+            {
+                "its_no": user_doc.get("its_no"),
+                "phone": user_doc.get("phone"),
+                "email_id": user_doc.get("email_id"),
+                "parent_contact": user_doc.get("parent_contact"),
+                "birth_date": user_doc.get("birth_date"),
+                "age": user_doc.get("age"),
+                "permissions": user_doc.get("permissions"),
+            }
+        )
 
     return {
-        "user": user_doc,
+        "user": public_user,
         "attendance": {
             "practice": {
                 "total": practice_total,
@@ -1457,9 +1723,19 @@ async def get_user_profile(
                 "present": khidmat_present,
                 "percentage": round(khidmat_percentage, 2),
             },
+            "duties": {
+                "total": duties_total,
+                "present": duties_present,
+                "percentage": round(duties_percentage, 2),
+            },
         },
-        "fees": {"records": fees, "total_due": total_due, "total_paid": total_paid},
+        "fees": {
+            "records": fees,
+            "total_due": total_due,
+            "total_paid": total_paid,
+        },
         "uniforms": uniforms,
+        "can_view_private": can_view_private,
     }
 
 
@@ -1508,6 +1784,7 @@ async def create_admin():
 
         admin_user = {
             "user_id": admin_id,
+            "its_no": admin_username,
             "username": admin_username,
             "password_hash": password_hash,
             "name": "Vajihi Admin",

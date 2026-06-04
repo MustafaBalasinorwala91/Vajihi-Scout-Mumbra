@@ -20,11 +20,27 @@ export interface FeeStats {
     thisMonthDue: number;
 }
 
+export interface DetailedFeeRecord extends FeeRecord {
+    member_name: string;
+    its_no?: string;
+    role?: string;
+}
+
 export const feeService = {
 
     // GET ALL FEES
     async getAllFees(): Promise<FeeRecord[]> {
         const response = await api.get('/fees/all', {
+            withCredentials: true,
+        });
+
+        return response.data;
+    },
+
+    // GET ALL DETAILED FEES
+    async getAllDetailedFees(): Promise<DetailedFeeRecord[]> {
+        console.log('API BASE URL:', api.defaults.baseURL);
+        const response = await api.get('/fees/all-detailed', {
             withCredentials: true,
         });
 
@@ -59,7 +75,7 @@ export const feeService = {
     // DELETE FEE
     async deleteFee(feeId: string) {
 
-        const response = await api.delete(`/ fees / ${feeId} `, {
+        const response = await api.delete(`/fees/${feeId}`, {
             withCredentials: true,
         });
 
@@ -70,7 +86,20 @@ export const feeService = {
     async generateMonthlyFees(month: string, amount: number) {
 
         const response = await api.post(
-            `/ admin / generate - fees / ${month}?amount = ${amount} `,
+            `/admin/generate-fees/${month}?amount=${amount}`,
+            {},
+            {
+                withCredentials: true,
+            }
+        );
+
+        return response.data;
+    },
+
+    // SEND FEES REMINDER
+    async sendReminders() {
+        const response = await api.post(
+            '/fees/send-reminders',
             {},
             {
                 withCredentials: true,

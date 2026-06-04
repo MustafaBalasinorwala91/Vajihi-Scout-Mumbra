@@ -1,4 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, {
+  useEffect,
+  useState,
+  useCallback,
+} from 'react';
 
 import {
   View,
@@ -7,10 +11,11 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
+  RefreshControl,
 } from 'react-native';
 
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 
 import {
   Ionicons,
@@ -18,11 +23,17 @@ import {
   FontAwesome5,
 } from '@expo/vector-icons';
 
-import { feeService, FeeRecord } from '../../services/FeeService';
+import {
+  feeService,
+  DetailedFeeRecord,
+} from '../../services/FeeService';
 
 export default function FeesScreen() {
-  const [fees, setFees] = useState<FeeRecord[]>([]);
+  const [fees, setFees] = useState<DetailedFeeRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] =
+    useState(false);
+  const [searchText, setSearchText] = useState('');
   const router = useRouter();
 
   const [stats, setStats] = useState({
@@ -35,16 +46,16 @@ export default function FeesScreen() {
     thisMonthDue: 0,
   });
 
-  useEffect(() => {
-
-    loadFees();
-
-  }, [fees.length]);
+  useFocusEffect(
+    useCallback(() => {
+      loadFees();
+    }, [])
+  );
 
   const loadFees = async () => {
     try {
 
-      const data = await feeService.getAllFees();
+      const data = await feeService.getAllDetailedFees();
 
       setFees(data);
 
@@ -55,20 +66,45 @@ export default function FeesScreen() {
 
     } catch (error) {
 
-      console.log('Failed to load fees:', error);
+      console.error(error);
 
     } finally {
 
       setLoading(false);
     }
   };
+  const onRefresh = async () => {
+
+    setRefreshing(true);
+
+    await loadFees();
+
+    setRefreshing(false);
+  };
+
+  const filteredFees = fees.filter((fee) =>
+    fee.member_name
+      ?.toLowerCase()
+      .includes(searchText.toLowerCase())
+  );
 
   return (
     <View style={styles.container}>
 
       <ScrollView
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#5B3DF5']}
+            tintColor="#5B3DF5"
+          />
+        }
+
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 120 }}
+        contentContainerStyle={{
+          paddingBottom: 120,
+        }}
       >
 
         {/* HEADER */}
@@ -286,6 +322,8 @@ export default function FeesScreen() {
               placeholder="Search member..."
               placeholderTextColor="#999"
               style={styles.searchInput}
+              value={searchText}
+              onChangeText={setSearchText}
             />
           </View>
 
@@ -334,22 +372,33 @@ export default function FeesScreen() {
 
           </View>
 
-          <LinearGradient
-            colors={['#7A5AF8', '#5B3DF5']}
-            style={styles.sendButton}
+          <TouchableOpacity
+            onPress={async () => {
+              try {
+                const result = await feeService.sendReminders();
+                alert(result.message);
+              } catch (error) {
+                alert('Failed to send reminders');
+              }
+            }}
           >
+            <LinearGradient
+              colors={['#7A5AF8', '#5B3DF5']}
+              style={styles.sendButton}
+            >
 
-            <Ionicons
-              name="paper-plane"
-              size={16}
-              color="#fff"
-            />
+              <Ionicons
+                name="paper-plane"
+                size={16}
+                color="#fff"
+              />
 
-            <Text style={styles.sendButtonText}>
-              Send Now
-            </Text>
+              <Text style={styles.sendButtonText}>
+                Send Now
+              </Text>
 
-          </LinearGradient>
+            </LinearGradient>
+          </TouchableOpacity>
 
         </LinearGradient>
 
@@ -371,7 +420,7 @@ export default function FeesScreen() {
           </View>
 
           {
-            fees.length === 0 ? (
+            filteredFees.length === 0 ? (
 
               <View style={styles.emptyContainer}>
 
@@ -395,7 +444,7 @@ export default function FeesScreen() {
 
             ) : (
 
-              fees.map((fee) => (
+              filteredFees.map((fee) => (
 
                 <View
                   key={fee.fee_id}
@@ -422,6 +471,16 @@ export default function FeesScreen() {
                           fontSize: 18,
                           fontWeight: '700',
                           color: '#16162E',
+                        }}
+                      >
+                        {fee.member_name}
+                      </Text>
+
+                      <Text
+                        style={{
+                          color: '#666',
+                          marginTop: 4,
+                          fontSize: 13,
                         }}
                       >
                         {fee.month}

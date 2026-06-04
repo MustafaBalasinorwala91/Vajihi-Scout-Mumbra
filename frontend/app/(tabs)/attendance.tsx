@@ -6,6 +6,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  RefreshControl,
 } from 'react-native';
 
 import { LinearGradient } from 'expo-linear-gradient';
@@ -13,15 +14,16 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useRouter } from 'expo-router';
+import { useAuth } from '../../contexts/AuthContext';
 import NotificationBell from '../../components/common/NotificationBell';
 import AttendanceTab from '../../components/attendance/AttendanceTab';
 import AttendanceCard from '../../components/attendance/AttendanceCard';
 import CalendarDay from '../../components/attendance/CalendarDay';
-import ReminderCard from '../../components/attendance/ReminderCard';
 
 export default function AttendanceScreen() {
 
   const router = useRouter();
+  const { user } = useAuth();
 
   const [attendanceType, setAttendanceType] =
     useState('practice');
@@ -31,10 +33,18 @@ export default function AttendanceScreen() {
       new Date().toISOString().split('T')[0]
     );
   const [markedDates, setMarkedDates] = useState<any[]>([]);
+  const canManageAttendance =
+    user?.permissions?.attendance;
   useEffect(() => {
+
     loadAttendanceDates();
+
     loadAttendanceStats();
-  }, [attendanceType]);
+
+  }, [attendanceType, canManageAttendance]);
+
+  const [refreshing, setRefreshing] =
+    useState(false);
 
   const [stats, setStats] = useState({
     total: 0,
@@ -57,7 +67,7 @@ export default function AttendanceScreen() {
 
     } catch (error) {
 
-      console.log('LOAD DATES ERROR:', error);
+      console.error(error);
 
     }
 
@@ -66,10 +76,27 @@ export default function AttendanceScreen() {
 
     try {
 
+      const endpoint =
+        canManageAttendance
+          ? `${BACKEND_URL}/api/attendance/history/${attendanceType}`
+          : `${BACKEND_URL}/api/attendance/my-stats/${attendanceType}`;
+
       const response = await axios.get(
-        `${BACKEND_URL}/api/attendance/history/${attendanceType}`
+        endpoint,
+        {
+          withCredentials: true,
+        }
       );
 
+      // MEMBER PERSONAL STATS
+      if (!canManageAttendance) {
+
+        setStats(response.data);
+
+        return;
+      }
+
+      // ADMIN / MANAGER ORGANIZATION STATS
       const history = response.data;
 
       let total = history.length;
@@ -108,9 +135,18 @@ export default function AttendanceScreen() {
       );
 
     }
-
   };
 
+  const onRefresh = async () => {
+
+    setRefreshing(true);
+
+    await loadAttendanceDates();
+
+    await loadAttendanceStats();
+
+    setRefreshing(false);
+  };
   const [currentDate, setCurrentDate] =
     useState(new Date());
 
@@ -187,7 +223,18 @@ export default function AttendanceScreen() {
     <View style={styles.container}>
 
       <ScrollView
+
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#5B3DF5']}
+            tintColor="#5B3DF5"
+          />
+        }
+
         showsVerticalScrollIndicator={false}
+
         contentContainerStyle={{
           paddingBottom: 140,
         }}
@@ -451,21 +498,22 @@ export default function AttendanceScreen() {
 
         </View>
 
-        {/* REMINDER */}
-        <ReminderCard />
-
         {/* VIEW MEMBERS BUTTON */}
         <TouchableOpacity
+
           style={styles.viewButton}
-          onPress={() =>
+
+          onPress={() => {
+
             router.push({
               pathname: '/attendance-members',
               params: {
                 attendanceType,
                 selectedDate,
               },
-            })
-          }
+            });
+
+          }}
         >
 
           <LinearGradient

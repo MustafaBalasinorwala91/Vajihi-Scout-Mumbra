@@ -52,8 +52,12 @@ export default function LoginScreen() {
           'session_token',
           data.session_token
         );
+        await AsyncStorage.setItem(
+          'user',
+          JSON.stringify(data.user)
+        );
         setUser(data.user);
-        await checkAuth();
+
         router.replace('/(tabs)/home');
       } else {
         const error = await response.json();

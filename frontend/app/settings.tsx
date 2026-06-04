@@ -90,7 +90,7 @@ export default function SettingsScreen() {
     return (
         <View style={styles.container}>
             <LinearGradient
-                colors={['#4B2CCF', '#6C4DFF']}
+                colors={['#2B145A', '#5B3DF5']}
                 style={styles.header}
             >
                 <TouchableOpacity
@@ -283,7 +283,7 @@ const styles = StyleSheet.create({
     },
 
     header: {
-        paddingTop: 60,
+        paddingTop: 70,
         paddingBottom: 35,
         paddingHorizontal: 20,
         flexDirection: 'row',
@@ -303,9 +303,9 @@ const styles = StyleSheet.create({
     },
 
     headerTitle: {
+        fontSize: 30,
+        fontWeight: '800',
         color: '#fff',
-        fontSize: 24,
-        fontWeight: '700',
     },
 
     content: {
@@ -322,8 +322,10 @@ const styles = StyleSheet.create({
 
     card: {
         backgroundColor: '#fff',
-        borderRadius: 22,
-        padding: 18,
+        borderRadius: 28,
+        borderWidth: 1,
+        borderColor: '#F3F0FF',
+        padding: 20,
         marginBottom: 16,
         flexDirection: 'row',
         justifyContent: 'space-between',
@@ -333,7 +335,7 @@ const styles = StyleSheet.create({
             width: 0,
             height: 3,
         },
-        shadowOpacity: 0.06,
+        shadowOpacity: 0.08,
         shadowRadius: 8,
         elevation: 4,
     },

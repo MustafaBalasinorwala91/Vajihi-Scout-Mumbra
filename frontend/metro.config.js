@@ -22,4 +22,11 @@ config.cacheStores = [
 // Reduce the number of workers to decrease resource usage
 config.maxWorkers = 2;
 
+config.resolver.assetExts.push(
+  'png',
+  'jpg',
+  'jpeg',
+  'webp'
+);
+
 module.exports = config;

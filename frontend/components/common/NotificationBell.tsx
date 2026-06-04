@@ -30,10 +30,14 @@ export default function NotificationBell({
 }: Props) {
 
     const router = useRouter();
+    const [animationStarted, setAnimationStarted] =
+        useState(false);
 
     const shakeAnim =
         useRef(new Animated.Value(0))
             .current;
+    const animationLoop =
+        useRef<Animated.CompositeAnimation | null>(null);
 
     const [hasUnread, setHasUnread] =
         useState(false);
@@ -42,6 +46,19 @@ export default function NotificationBell({
 
         loadNotifications();
 
+        const interval = setInterval(() => {
+
+            loadNotifications();
+
+        }, 10000);
+
+        return () => {
+
+            clearInterval(interval);
+
+            animationLoop.current?.stop();
+
+        };
     }, []);
     const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
@@ -54,63 +71,72 @@ export default function NotificationBell({
                     `${BACKEND_URL}/api/notifications/my`
                 );
 
-            if (
-                response.data &&
-                response.data.length > 0
-            ) {
+            const unread =
+                response.data.filter(
+                    (item: any) => !item.is_read
+                );
+
+            if (unread.length > 0) {
 
                 setHasUnread(true);
 
-                startBellAnimation();
+                if (!animationStarted) {
+
+                    startBellAnimation();
+
+                    setAnimationStarted(true);
+                }
+
+            } else {
+
+                setHasUnread(false);
+
+                setAnimationStarted(false);
             }
 
         } catch (error) {
 
-            console.log(error);
+            console.error(error);
         }
     };
 
     const startBellAnimation = () => {
 
-        Animated.sequence([
+        animationLoop.current = Animated.loop(
 
-            Animated.timing(
-                shakeAnim,
-                {
+            Animated.sequence([
+
+                Animated.timing(shakeAnim, {
                     toValue: 1,
                     duration: 120,
                     useNativeDriver: true,
-                }
-            ),
+                }),
 
-            Animated.timing(
-                shakeAnim,
-                {
+                Animated.timing(shakeAnim, {
                     toValue: -1,
                     duration: 120,
                     useNativeDriver: true,
-                }
-            ),
+                }),
 
-            Animated.timing(
-                shakeAnim,
-                {
+                Animated.timing(shakeAnim, {
                     toValue: 1,
                     duration: 120,
                     useNativeDriver: true,
-                }
-            ),
+                }),
 
-            Animated.timing(
-                shakeAnim,
-                {
+                Animated.timing(shakeAnim, {
                     toValue: 0,
                     duration: 120,
                     useNativeDriver: true,
-                }
-            ),
+                }),
 
-        ]).start();
+                Animated.delay(2500),
+
+            ])
+
+        );
+
+        animationLoop.current.start();
     };
 
     const rotate = shakeAnim.interpolate({
@@ -125,9 +151,23 @@ export default function NotificationBell({
         <TouchableOpacity
             activeOpacity={0.8}
             style={styles.container}
-            onPress={() => {
+            onPress={async () => {
+
+                try {
+
+                    await axios.put(
+                        `${BACKEND_URL}/api/notifications/read-all`
+                    );
+
+                } catch (error) {
+
+                    console.error(error);
+                }
 
                 setHasUnread(false);
+                animationLoop.current?.stop();
+
+                setAnimationStarted(false);
 
                 router.push('/notifications');
             }}
