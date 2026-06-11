@@ -1,7 +1,10 @@
+import { wp, hp } from '../utils/responsive';
+import { rf } from '../utils/fonts';
 import React, { useEffect, useState } from 'react';
 import { TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
     View,
     Text,
@@ -11,10 +14,11 @@ import {
     RefreshControl,
 } from 'react-native';
 
-import axios from 'axios';
+import api from '../services/api';
 import { useRouter } from 'expo-router';
 export default function NotificationsScreen() {
 
+    const [loading, setLoading] = useState(true);
     const router = useRouter();
     const [notifications, setNotifications] = useState<any[]>([]);
     const [refreshing, setRefreshing] =
@@ -25,15 +29,27 @@ export default function NotificationsScreen() {
 
         loadNotifications();
 
+        markAllRead();
+
     }, []);
     const loadNotifications = async () => {
 
         try {
 
-            const response = await axios.get(
+            setLoading(true);
+
+            const token =
+                await AsyncStorage.getItem(
+                    'session_token'
+                );
+            if (!token) return;
+
+            const response = await api.get(
                 `${BACKEND_URL}/api/notifications/my`,
                 {
-                    withCredentials: true,
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
                 }
             );
 
@@ -49,6 +65,11 @@ export default function NotificationsScreen() {
         } catch (error) {
 
             console.error(error);
+
+        } finally {
+
+            setLoading(false);
+
         }
     };
     const onRefresh = async () => {
@@ -59,8 +80,86 @@ export default function NotificationsScreen() {
 
         setRefreshing(false);
     };
+    const markAllRead = async () => {
+
+        try {
+
+            const token =
+                await AsyncStorage.getItem(
+                    'session_token'
+                );
+            if (!token) return;
+
+            await api.put(
+                `${BACKEND_URL}/api/notifications/read-all`,
+                {},
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                }
+            );
+
+        } catch (error) {
+
+            console.error(error);
+
+        }
+    };
+    if (loading) {
+
+        return (
+
+            <View style={styles.container}>
+
+                <StatusBar barStyle="light-content" />
+
+                <LinearGradient
+                    colors={['#2B145A', '#5B3DF5']}
+                    style={styles.header}
+                >
+                    <View style={styles.headerTop}>
+
+                        <TouchableOpacity
+                            activeOpacity={0.8}
+                            style={styles.backButton}
+                            onPress={() => router.back()}
+                        >
+                            <Ionicons
+                                name="arrow-back"
+                                size={22}
+                                color="#fff"
+                            />
+                        </TouchableOpacity>
+
+                        <View style={styles.headerTextWrapper}>
+                            <Text style={styles.headerTitle}>
+                                Notifications
+                            </Text>
+
+                            <Text style={styles.headerSubtitle}>
+                                Latest updates and notifications
+                            </Text>
+                        </View>
+
+                    </View>
+                </LinearGradient>
+
+                <View style={styles.loadingContainer}>
+                    <Ionicons
+                        name="notifications"
+                        size={40}
+                        color="#5B3DF5"
+                    />
+                </View>
+
+            </View>
+
+        );
+    }
 
     return (
+
 
         <View style={styles.container}>
 
@@ -145,57 +244,64 @@ export default function NotificationsScreen() {
                     </View>
                 }
 
-                renderItem={({ item }) => (
+                renderItem={({ item }) => {
 
-                    <TouchableOpacity
-                        activeOpacity={0.85}
-                        style={styles.card}
-                    >
-                        <View style={styles.iconContainer}>
+                    return (
 
-                            <Text style={styles.icon}>
+                        <TouchableOpacity
+                            activeOpacity={0.85}
+                            style={styles.card}
+                        >
+                            <View style={styles.iconContainer}>
 
-                                {
-                                    item.title?.includes('Attendance')
-                                        ? '📅'
+                                <Text style={styles.icon}>
 
-                                        : item.title?.includes('Fee')
-                                            ? '💰'
+                                    {
+                                        item.title?.includes('Attendance')
+                                            ? '📅'
 
-                                            : item.title?.includes('Permission')
-                                                ? '🛡'
+                                            : item.title?.includes('Fee')
+                                                ? '💰'
 
-                                                : item.title?.includes('Profile')
-                                                    ? '👤'
+                                                : item.title?.includes('Permission')
+                                                    ? '🛡'
 
-                                                    : '🔔'
-                                }
+                                                    : item.title?.includes('Profile')
+                                                        ? '👤'
 
-                            </Text>
-                        </View>
+                                                        : '🔔'
+                                    }
 
-                        <View style={styles.content}>
+                                </Text>
+                            </View>
 
-                            <Text style={styles.cardTitle}>
-                                {item.title}
-                            </Text>
+                            <View style={styles.content}>
 
-                            <Text style={styles.message}>
-                                {item.message}
-                            </Text>
-                            <Text style={styles.timeText}>
-                                {new Date(item.created_at).toLocaleDateString()}
-                                {' • '}
-                                {new Date(item.created_at).toLocaleTimeString([], {
-                                    hour: '2-digit',
-                                    minute: '2-digit',
-                                })}
-                            </Text>
+                                <Text style={styles.cardTitle}>
+                                    {item.title}
+                                </Text>
 
-                        </View>
+                                <Text style={styles.message}>
+                                    {item.message}
+                                </Text>
+                                <Text style={styles.timeText}>
+                                    {new Date(item.created_at).toLocaleString('en-IN', {
+                                        timeZone: 'Asia/Kolkata',
+                                        day: '2-digit',
+                                        month: '2-digit',
+                                        year: 'numeric',
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                        hour12: true,
+                                    })}
+                                </Text>
+                            </View>
 
-                    </TouchableOpacity>
-                )}
+                        </TouchableOpacity>
+                    )
+                }
+                }
+
             />
 
         </View>
@@ -203,69 +309,68 @@ export default function NotificationsScreen() {
 }
 
 const styles = StyleSheet.create({
-
     container: {
         flex: 1,
         backgroundColor: '#F5F5F5',
     },
 
     header: {
-        paddingTop: 70,
-        paddingBottom: 30,
-        paddingHorizontal: 24,
+        paddingTop: hp(8),
+        paddingBottom: hp(3.5),
+        paddingHorizontal: wp(6),
 
-        borderBottomLeftRadius: 34,
-        borderBottomRightRadius: 34,
+        borderBottomLeftRadius: wp(8),
+        borderBottomRightRadius: wp(8),
     },
 
     headerTop: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 16,
     },
 
     headerTextWrapper: {
         flex: 1,
+        marginLeft: wp(4),
     },
 
     headerTitle: {
-        fontSize: 30,
+        fontSize: rf(26),
         fontWeight: '800',
         color: '#fff',
     },
 
     headerSubtitle: {
-        marginTop: 6,
-        fontSize: 16,
+        marginTop: hp(0.5),
+        fontSize: rf(14),
         color: 'rgba(255,255,255,0.8)',
     },
 
     backButton: {
-        width: 44,
-        height: 44,
+        width: wp(11),
+        height: wp(11),
 
-        borderRadius: 14,
+        borderRadius: wp(3.5),
 
         backgroundColor: 'rgba(255,255,255,0.18)',
 
         justifyContent: 'center',
         alignItems: 'center',
-
-        marginTop: 2,
     },
 
     card: {
         backgroundColor: '#fff',
-        transform: [{ scale: 1 }],
+
         overflow: 'hidden',
-        marginHorizontal: 20,
-        marginBottom: 18,
+
+        marginHorizontal: wp(5),
+        marginBottom: hp(2),
+
         borderWidth: 1,
         borderColor: '#F1ECFF',
 
-        borderRadius: 28,
+        borderRadius: wp(7),
 
-        padding: 20,
+        padding: wp(5),
 
         flexDirection: 'row',
         alignItems: 'flex-start',
@@ -278,63 +383,74 @@ const styles = StyleSheet.create({
     },
 
     iconContainer: {
-        width: 56,
-        height: 56,
+        width: wp(14),
+        height: wp(14),
 
-        borderRadius: 20,
+        borderRadius: wp(5),
 
         backgroundColor: '#EEE9FF',
 
         justifyContent: 'center',
         alignItems: 'center',
 
-        marginRight: 16,
+        marginRight: wp(4),
     },
 
     icon: {
-        fontSize: 24,
+        fontSize: rf(20),
     },
 
     content: {
         flex: 1,
     },
+
     emptyWrapper: {
-        marginTop: 120,
-        paddingHorizontal: 30,
+        marginTop: hp(12),
+        paddingHorizontal: wp(8),
         alignItems: 'center',
     },
 
     emptyTitle: {
-        marginTop: 18,
-        fontSize: 20,
+        marginTop: hp(2),
+        fontSize: rf(18),
         fontWeight: '700',
         color: '#444',
+        textAlign: 'center',
     },
 
     emptySubtext: {
-        marginTop: 8,
-        fontSize: 14,
+        marginTop: hp(1),
+        fontSize: rf(13),
         textAlign: 'center',
         color: '#888',
     },
 
     cardTitle: {
-        fontSize: 18,
+        fontSize: rf(16),
         fontWeight: '800',
         color: '#16162E',
     },
 
     message: {
-        marginTop: 8,
+        marginTop: hp(1),
 
         color: '#666',
 
-        lineHeight: 24,
-        fontSize: 15,
+        fontSize: rf(14),
+        lineHeight: rf(20),
+
+        flexShrink: 1,
     },
+
     timeText: {
-        marginTop: 8,
-        fontSize: 12,
+        marginTop: hp(1),
+        fontSize: rf(11),
         color: '#999',
+    },
+
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
 });

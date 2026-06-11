@@ -9,6 +9,7 @@ export const saveAttendance = async (
 ) => {
     try {
         const token = await AsyncStorage.getItem('session_token');
+        if (!token) return;
 
         const response = await fetch(
             `${API_URL}/api/attendance/save`,
@@ -35,6 +36,7 @@ export const saveAttendance = async (
 export const getAttendanceHistory = async () => {
     try {
         const token = await AsyncStorage.getItem('session_token');
+        if (!token) return;
 
         const response = await fetch(
             `${API_URL}/api/attendance/history`,

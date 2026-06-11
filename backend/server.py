@@ -6,8 +6,14 @@ from fastapi import (
     Response,
     Request,
     Depends,
+    Query,
 )
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse
+
+from exports.attendance_export import generate_attendance_excel
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -19,6 +25,8 @@ from typing import List, Optional
 import uuid
 from datetime import datetime, timezone, timedelta
 import bcrypt
+import requests
+import random
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
@@ -85,12 +93,24 @@ class UserSession(BaseModel):
 
 class AttendanceRecord(BaseModel):
     attendance_id: str = Field(default_factory=lambda: f"att_{uuid.uuid4().hex[:12]}")
+
     user_id: str
-    attendance_type: str  # practice or khidmat
-    date: str  # YYYY-MM-DD
-    status: str  # present or absent
-    marked_by: str  # admin user_id
+
+    attendance_type: str
+
+    event_name: Optional[str] = None
+
+    date: str
+
+    status: str
+
+    marked_by: str
+
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class SavePushTokenRequest(BaseModel):
+    expo_push_token: str
 
 
 class NotificationRecord(BaseModel):
@@ -188,6 +208,7 @@ class UpdateProfileRequest(BaseModel):
 class MarkAttendanceRequest(BaseModel):
     user_id: str
     attendance_type: str
+    event_name: Optional[str] = None
     date: str
     status: str
 
@@ -199,7 +220,11 @@ class BulkAttendanceItem(BaseModel):
 
 class BulkAttendanceRequest(BaseModel):
     attendance_type: str
+
+    event_name: Optional[str] = None
+
     date: str
+
     records: List[BulkAttendanceItem]
 
 
@@ -269,6 +294,126 @@ class SimpleResetPasswordRequest(BaseModel):
 class ResetPasswordRequest(BaseModel):
     user_id: str
     new_password: str
+
+
+class SendOTPRequest(BaseModel):
+    username: str
+
+
+class VerifyOTPRequest(BaseModel):
+    username: str
+    otp: str
+
+
+class CompleteResetPasswordRequest(BaseModel):
+    username: str
+    otp: str
+    new_password: str
+
+
+class PasswordResetOTP(BaseModel):
+    otp_id: str = Field(default_factory=lambda: f"otp_{uuid.uuid4().hex[:12]}")
+    user_id: str
+    email: str
+    otp: str
+    expires_at: datetime
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+# ============= NOTIFICATION HELPERS =============
+
+
+async def send_push_notification(
+    expo_push_token: str,
+    title: str,
+    body: str,
+):
+    try:
+        requests.post(
+            "https://exp.host/--/api/v2/push/send",
+            json={
+                "to": expo_push_token,
+                "title": title,
+                "body": body,
+                "sound": "default",
+            },
+            timeout=10,
+        )
+    except Exception as e:
+        logger.error(f"Push notification failed: {e}")
+
+
+async def cleanup_old_notifications():
+
+    twelve_hours_ago = datetime.now(timezone.utc) - timedelta(hours=12)
+
+    result = await db.notifications.delete_many(
+        {"created_at": {"$lt": twelve_hours_ago}}
+    )
+
+    logger.info(f"Deleted {result.deleted_count} old notifications")
+
+
+async def send_email(
+    to_email: str,
+    subject: str,
+    body: str,
+):
+    try:
+
+        smtp_email = os.getenv("SMTP_EMAIL")
+        smtp_password = os.getenv("SMTP_PASSWORD")
+
+        message = MIMEMultipart()
+
+        message["From"] = smtp_email
+        message["To"] = to_email
+        message["Subject"] = subject
+
+        message.attach(MIMEText(body, "plain"))
+
+        server = smtplib.SMTP("smtp.gmail.com", 587)
+
+        server.starttls()
+
+        server.login(smtp_email, smtp_password)
+
+        server.send_message(message)
+
+        server.quit()
+
+        return True
+
+    except Exception as e:
+
+        logger.error(f"Email failed: {e}")
+
+        return False
+
+
+async def send_reset_otp_email(
+    recipient_email: str,
+    otp: str,
+):
+    subject = "Vajihi Scout Password Reset OTP"
+
+    body = f"""
+Your password reset OTP is:
+
+{otp}
+
+This OTP will expire in 10 minutes.
+
+If you did not request a password reset, please ignore this email.
+
+Vajihi Scout Mumbra
+"""
+
+    return await send_email(
+        recipient_email,
+        subject,
+        body,
+    )
 
 
 # ============= AUTHENTICATION HELPERS =============
@@ -362,6 +507,18 @@ async def require_permission(permission_name: str, current_user: User):
 # ============= AUTH ENDPOINTS =============
 
 
+@api_router.get("/auth/test-email")
+async def test_email():
+
+    success = await send_email(
+        "vajihiscoutmumbra@gmail.com",
+        "Vajihi Scout Test",
+        "Email system working successfully.",
+    )
+
+    return {"success": success}
+
+
 @api_router.post("/auth/signup")
 async def signup(signup_data: SignupRequest):
     """Register a new user"""
@@ -406,6 +563,7 @@ async def signup(signup_data: SignupRequest):
             "members": False,
         },
         "tag": None,
+        "expo_push_token": None,
         "security_question": signup_data.security_question,
         "security_answer_hash": security_answer_hash,
         "created_at": datetime.now(timezone.utc),
@@ -413,14 +571,37 @@ async def signup(signup_data: SignupRequest):
 
     await db.users.insert_one(new_user)
 
+    notification = NotificationRecord(
+        user_id=user_id,
+        title="Welcome",
+        message="Welcome to Vajihi Scout. Your account has been created successfully.",
+    )
+
+    await db.notifications.insert_one(notification.dict())
+
     return {"message": "User created successfully", "user_id": user_id}
+
+
+@api_router.post("/notifications/register-token")
+async def register_push_token(
+    data: SavePushTokenRequest,
+    current_user: User = Depends(get_current_user),
+):
+    await db.users.update_one(
+        {"user_id": current_user.user_id},
+        {"$set": {"expo_push_token": data.expo_push_token}},
+    )
+
+    return {"message": "Push token saved"}
 
 
 @api_router.post("/auth/login")
 async def login(login_data: LoginRequest, response: Response):
     """Login with ITS and password"""
     # Find user
-    user_doc = await db.users.find_one({"username": login_data.username})
+    user_doc = await db.users.find_one(
+        {"$or": [{"username": login_data.username}, {"its_no": login_data.username}]}
+    )
 
     if not user_doc:
         raise HTTPException(status_code=401, detail="Invalid username or password")
@@ -443,14 +624,13 @@ async def login(login_data: LoginRequest, response: Response):
         key="session_token",
         value=session_token,
         httponly=True,
-        secure=False,
+        secure=True,
         samesite="lax",
         max_age=7 * 24 * 60 * 60,
         path="/",
     )
 
     # Return user data (without password hash)
-    user_data = {k: v for k, v in user_doc.items() if k not in ["_id", "password_hash"]}
 
     return {
         "user": {
@@ -529,99 +709,119 @@ async def change_password(
     return {"message": "Password changed successfully"}
 
 
-@api_router.post("/auth/simple-reset-password")
-async def simple_reset_password(reset_data: SimpleResetPasswordRequest):
-    """Simple password reset - just username and new password"""
-    # Find user
-    user_doc = await db.users.find_one({"username": reset_data.username})
+@api_router.post("/auth/send-reset-otp")
+async def send_reset_otp(data: SendOTPRequest):
 
-    if not user_doc:
-        raise HTTPException(status_code=404, detail="Username not found")
+    user = await db.users.find_one({"username": data.username})
 
-    # Validate passwords match
-    if reset_data.new_password != reset_data.confirm_password:
-        raise HTTPException(status_code=400, detail="Passwords do not match")
+    if not user:
+        raise HTTPException(status_code=404, detail="Invalid username or OTP")
 
-    # Validate new password
-    if len(reset_data.new_password) < 6:
-        raise HTTPException(
-            status_code=400, detail="New password must be at least 6 characters"
-        )
+    email = user.get("email_id")
 
-    # Hash and update new password
-    new_password_hash = hash_password(reset_data.new_password)
-    await db.users.update_one(
-        {"user_id": user_doc["user_id"]}, {"$set": {"password_hash": new_password_hash}}
+    if not email:
+        raise HTTPException(status_code=400, detail="Email not found for this account")
+
+    otp = str(random.randint(100000, 999999))
+
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
+
+    await db.password_reset_otps.delete_many({"user_id": user["user_id"]})
+
+    await db.password_reset_otps.insert_one(
+        {
+            "user_id": user["user_id"],
+            "email": email,
+            "otp": otp,
+            "expires_at": expires_at,
+            "created_at": datetime.now(timezone.utc),
+        }
     )
 
-    # Invalidate all sessions for this user
-    await db.user_sessions.delete_many({"user_id": user_doc["user_id"]})
-
-    return {
-        "message": "Password reset successfully. Please login with your new password"
-    }
-
-
-@api_router.get("/auth/forgot-password")
-async def forgot_password(forgot_data: ForgotPasswordRequest):
-    """Reset password using security answer"""
-    # Find user
-    user_doc = await db.users.find_one({"username": forgot_data.username})
-
-    if not user_doc:
-        raise HTTPException(status_code=404, detail="Username not found")
-
-    # Check if user has security question set
-    if not user_doc.get("security_answer_hash"):
-        raise HTTPException(
-            status_code=400,
-            detail="No security question set. Please contact admin to reset your password",
-        )
-
-    # Verify security answer
-    answer_to_verify = forgot_data.security_answer.lower().strip()
-    if not verify_password(answer_to_verify, user_doc["security_answer_hash"]):
-        raise HTTPException(status_code=400, detail="Incorrect security answer")
-
-    # Validate new password
-    if len(forgot_data.new_password) < 6:
-        raise HTTPException(
-            status_code=400, detail="New password must be at least 6 characters"
-        )
-
-    # Hash and update new password
-    new_password_hash = hash_password(forgot_data.new_password)
-    await db.users.update_one(
-        {"user_id": user_doc["user_id"]}, {"$set": {"password_hash": new_password_hash}}
+    email_sent = await send_reset_otp_email(
+        email,
+        otp,
     )
 
-    # Invalidate all sessions for this user
-    await db.user_sessions.delete_many({"user_id": user_doc["user_id"]})
+    if not email_sent:
+        raise HTTPException(status_code=500, detail="Failed to send OTP email")
 
-    return {
-        "message": "Password reset successfully. Please login with your new password"
-    }
+    return {"message": "OTP sent successfully"}
 
 
-@api_router.get("/auth/check-security-question/{username}")
-async def check_security_question(username: str):
-    """Check if user has security question set"""
-    user_doc = await db.users.find_one({"username": username})
+@api_router.post("/auth/verify-reset-otp")
+async def verify_reset_otp(data: VerifyOTPRequest):
 
-    if not user_doc:
-        raise HTTPException(status_code=404, detail="Username not found")
+    user = await db.users.find_one({"username": data.username})
 
-    has_security_question = bool(user_doc.get("security_question"))
+    if not user:
+        raise HTTPException(status_code=404, detail="Invalid username or OTP")
 
-    return {
-        "has_security_question": has_security_question,
-        "security_question": (
-            user_doc.get("security_question") if has_security_question else None
-        ),
-        "message": (
-            "Contact admin to reset password" if not has_security_question else None
-        ),
-    }
+    otp_doc = await db.password_reset_otps.find_one(
+        {
+            "user_id": user["user_id"],
+            "otp": data.otp,
+        }
+    )
+
+    if not otp_doc:
+        raise HTTPException(status_code=400, detail="Invalid OTP")
+
+    expires_at = otp_doc["expires_at"]
+
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+
+    if expires_at < datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="OTP expired")
+
+    return {"verified": True, "message": "OTP verified successfully"}
+
+
+@api_router.post("/auth/reset-password-with-otp")
+async def reset_password_with_otp(data: CompleteResetPasswordRequest):
+
+    user = await db.users.find_one({"username": data.username})
+    if data.new_password.strip() == "":
+        raise HTTPException(status_code=400, detail="Password cannot be empty")
+
+    if not user:
+        raise HTTPException(status_code=404, detail="Invalid username or OTP")
+
+    otp_doc = await db.password_reset_otps.find_one(
+        {
+            "user_id": user["user_id"],
+            "otp": data.otp,
+        }
+    )
+
+    if not otp_doc:
+        raise HTTPException(status_code=400, detail="Invalid OTP")
+
+    expires_at = otp_doc["expires_at"]
+
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+
+    if expires_at < datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="OTP expired")
+
+    if len(data.new_password) < 6:
+        raise HTTPException(
+            status_code=400, detail="Password must be at least 6 characters"
+        )
+
+    password_hash = hash_password(data.new_password)
+
+    await db.users.update_one(
+        {"user_id": user["user_id"]}, {"$set": {"password_hash": password_hash}}
+    )
+
+    await db.user_sessions.delete_many({"user_id": user["user_id"]})
+
+    await db.password_reset_otps.delete_many({"user_id": user["user_id"]})
+
+    return {"message": "Password reset successfully"}
 
 
 # ============= USER/PROFILE ENDPOINTS =============
@@ -726,7 +926,7 @@ async def get_all_users(current_user: User = Depends(get_current_user)):
 async def get_attendance_members(current_user: User = Depends(get_current_user)):
 
     members = await db.users.find(
-        {},
+        {"role": {"$ne": "admin"}},
         {
             "_id": 0,
             "user_id": 1,
@@ -756,6 +956,7 @@ async def mark_attendance(
         {
             "user_id": attendance.user_id,
             "attendance_type": attendance.attendance_type,
+            "event_name": attendance.event_name,
             "date": attendance.date,
         }
     )
@@ -774,6 +975,7 @@ async def mark_attendance(
         new_attendance = AttendanceRecord(
             user_id=attendance.user_id,
             attendance_type=attendance.attendance_type,
+            event_name=attendance.event_name,
             date=attendance.date,
             status=attendance.status,
             marked_by=current_user.user_id,
@@ -786,7 +988,8 @@ async def mark_attendance(
 
 @api_router.post("/attendance/bulk")
 async def mark_bulk_attendance(
-    data: BulkAttendanceRequest, current_user: User = Depends(get_current_user)
+    data: BulkAttendanceRequest,
+    current_user: User = Depends(get_current_user),
 ):
     """Bulk attendance save"""
 
@@ -800,6 +1003,7 @@ async def mark_bulk_attendance(
             {
                 "user_id": record.user_id,
                 "attendance_type": data.attendance_type,
+                "event_name": data.event_name,
                 "date": data.date,
             }
         )
@@ -812,6 +1016,7 @@ async def mark_bulk_attendance(
                     "$set": {
                         "status": record.status,
                         "marked_by": current_user.user_id,
+                        "event_name": data.event_name,
                     }
                 },
             )
@@ -821,6 +1026,7 @@ async def mark_bulk_attendance(
             attendance = AttendanceRecord(
                 user_id=record.user_id,
                 attendance_type=data.attendance_type,
+                event_name=data.event_name,
                 date=data.date,
                 status=record.status,
                 marked_by=current_user.user_id,
@@ -828,8 +1034,7 @@ async def mark_bulk_attendance(
 
             await db.attendance.insert_one(attendance.dict())
 
-        # CREATE NOTIFICATION
-
+        # Save notification in database
         notification = NotificationRecord(
             user_id=record.user_id,
             title="Attendance Updated",
@@ -838,19 +1043,46 @@ async def mark_bulk_attendance(
 
         await db.notifications.insert_one(notification.dict())
 
+        # Send push notification
+        user = await db.users.find_one({"user_id": record.user_id})
+
+        if user and user.get("expo_push_token"):
+            await send_push_notification(
+                user["expo_push_token"],
+                "Attendance Updated",
+                f"Your {data.attendance_type} attendance for {data.date} marked {record.status}",
+            )
+
         saved += 1
 
-    return {"message": "Attendance saved successfully", "saved_count": saved}
+    return {
+        "message": "Attendance saved successfully",
+        "saved_count": saved,
+    }
 
 
 @api_router.get("/notifications/my")
 async def get_my_notifications(current_user: User = Depends(get_current_user)):
 
     notifications = (
-        await db.notifications.find({"user_id": current_user.user_id}, {"_id": 0})
+        await db.notifications.find(
+            {"user_id": current_user.user_id},
+            {"_id": 0},
+        )
         .sort("created_at", -1)
-        .to_list(1000)
+        .to_list(100)
     )
+
+    for notification in notifications:
+
+        created_at = notification.get("created_at")
+
+        if isinstance(created_at, datetime):
+
+            if created_at.tzinfo is None:
+                created_at = created_at.replace(tzinfo=timezone.utc)
+
+            notification["created_at"] = created_at.isoformat().replace("+00:00", "Z")
 
     return notifications
 
@@ -858,7 +1090,7 @@ async def get_my_notifications(current_user: User = Depends(get_current_user)):
 @api_router.put("/notifications/read-all")
 async def mark_notifications_read(current_user: User = Depends(get_current_user)):
 
-    await db.notifications.update_many(
+    result = await db.notifications.update_many(
         {
             "user_id": current_user.user_id,
             "is_read": False,
@@ -870,7 +1102,37 @@ async def mark_notifications_read(current_user: User = Depends(get_current_user)
         },
     )
 
-    return {"message": "Notifications marked as read"}
+    return {"message": "Notifications marked as read", "updated": result.modified_count}
+
+
+@api_router.put("/notifications/read/{notification_id}")
+async def mark_notification_read(
+    notification_id: str,
+    current_user: User = Depends(get_current_user),
+):
+
+    await db.notifications.update_one(
+        {
+            "notification_id": notification_id,
+            "user_id": current_user.user_id,
+        },
+        {"$set": {"is_read": True}},
+    )
+
+    return {"message": "Notification marked as read"}
+
+
+@api_router.get("/notifications/unread-count")
+async def get_unread_count(current_user: User = Depends(get_current_user)):
+
+    count = await db.notifications.count_documents(
+        {
+            "user_id": current_user.user_id,
+            "is_read": False,
+        }
+    )
+
+    return {"count": count}
 
 
 @api_router.get("/attendance/my/{attendance_type}")
@@ -909,52 +1171,38 @@ async def get_my_attendance(
 async def get_my_attendance_history(
     attendance_type: str, current_user: User = Depends(get_current_user)
 ):
-    """Get attendance history only for sessions where current user was marked"""
 
-    # FIND CURRENT USER RECORDS
-    my_records = await db.attendance.find(
-        {
-            "user_id": current_user.user_id,
-            "attendance_type": attendance_type,
-        },
-        {
-            "_id": 0,
-            "date": 1,
-        },
-    ).to_list(5000)
-
-    # EXTRACT UNIQUE DATES
-    dates = list(set([record["date"] for record in my_records]))
+    records = (
+        await db.attendance.find(
+            {
+                "user_id": current_user.user_id,
+                "attendance_type": attendance_type,
+            },
+            {
+                "_id": 0,
+                "date": 1,
+                "status": 1,
+                "event_name": 1,
+            },
+        )
+        .sort("date", -1)
+        .to_list(5000)
+    )
 
     result = []
 
-    # BUILD SESSION STATS
-    for date in dates:
-
-        session_records = await db.attendance.find(
-            {
-                "attendance_type": attendance_type,
-                "date": date,
-            },
-            {"_id": 0},
-        ).to_list(1000)
-
-        present = len([r for r in session_records if r["status"] == "present"])
-
-        absent = len([r for r in session_records if r["status"] == "absent"])
+    for record in records:
 
         result.append(
             {
-                "date": date,
+                "date": record["date"],
                 "attendance_type": attendance_type,
-                "present": present,
-                "absent": absent,
+                "event_name": record.get("event_name"),
+                "present": 1 if record["status"] == "present" else 0,
+                "absent": 1 if record["status"] == "absent" else 0,
+                "my_status": record["status"],
             }
         )
-
-    # SORT LATEST FIRST
-    result.sort(key=lambda x: x["date"], reverse=True)
-
     return result
 
 
@@ -1037,15 +1285,21 @@ async def delete_attendance(attendance_id: str, admin: User = Depends(require_ad
 
 @api_router.delete("/attendance/session/{attendance_type}/{date}")
 async def delete_attendance_session(
-    attendance_type: str, date: str, admin: User = Depends(require_admin)
+    attendance_type: str,
+    date: str,
+    event_name: Optional[str] = Query(None),
+    admin: User = Depends(require_admin),
 ):
 
-    result = await db.attendance.delete_many(
-        {
-            "attendance_type": attendance_type,
-            "date": date,
-        }
-    )
+    query = {
+        "attendance_type": attendance_type,
+        "date": date,
+    }
+
+    if event_name:
+        query["event_name"] = event_name
+
+    result = await db.attendance.delete_many(query)
 
     return {"message": f"Deleted {result.deleted_count} attendance records"}
 
@@ -1055,37 +1309,89 @@ async def get_attendance_dates(
     attendance_type: str, current_user: User = Depends(get_current_user)
 ):
 
-    records = await db.attendance.find(
-        {"attendance_type": attendance_type}, {"_id": 0}
-    ).to_list(5000)
+    # ADMIN ONLY
+    if current_user.role == "admin":
 
-    result = []
+        records = await db.attendance.find(
+            {"attendance_type": attendance_type},
+            {
+                "_id": 0,
+                "date": 1,
+                "status": 1,
+            },
+        ).to_list(5000)
+
+    grouped = {}
 
     for record in records:
 
-        result.append(
-            {
-                "date": record["date"],
-                "status": record["status"],
-                "user_id": record["user_id"],
-            }
-        )
+        date = record["date"]
 
-    return result
+        if date not in grouped:
+            grouped[date] = {
+                "date": date,
+                "presentCount": 0,
+                "absentCount": 0,
+            }
+
+        if record["status"] == "present":
+            grouped[date]["presentCount"] += 1
+
+        if record["status"] == "absent":
+            grouped[date]["absentCount"] += 1
+
+    return list(grouped.values())
+    # MEMBERS + ATTENDANCE MANAGERS
+    records = await db.attendance.find(
+        {
+            "attendance_type": attendance_type,
+            "user_id": current_user.user_id,
+        },
+        {
+            "_id": 0,
+            "date": 1,
+            "status": 1,
+        },
+    ).to_list(5000)
+
+    grouped = {}
+
+    for record in records:
+
+        date = record["date"]
+
+        if date not in grouped:
+            grouped[date] = {
+                "date": date,
+                "present": False,
+                "absent": False,
+            }
+
+        if record["status"] == "present":
+            grouped[date]["present"] = True
+
+        if record["status"] == "absent":
+            grouped[date]["absent"] = True
+
+    return list(grouped.values())
 
 
 @api_router.get("/attendance/history-details/{attendance_type}/{date}")
 async def get_attendance_history_details(
-    attendance_type: str, date: str, current_user: User = Depends(get_current_user)
+    attendance_type: str,
+    date: str,
+    event_name: Optional[str] = Query(None),
+    current_user: User = Depends(get_current_user),
 ):
+    query = {
+        "attendance_type": attendance_type,
+        "date": date,
+    }
 
-    records = await db.attendance.find(
-        {
-            "attendance_type": attendance_type,
-            "date": date,
-        },
-        {"_id": 0},
-    ).to_list(1000)
+    if event_name:
+        query["event_name"] = event_name
+
+    records = await db.attendance.find(query, {"_id": 0}).to_list(1000)
 
     result = []
 
@@ -1107,6 +1413,7 @@ async def get_attendance_history_details(
                 "name": user["name"] if user else "Unknown",
                 "role": user["role"] if user else "",
                 "status": record["status"],
+                "event_name": record.get("event_name"),
             }
         )
 
@@ -1118,8 +1425,6 @@ async def get_attendance_history(
     attendance_type: str, current_user: User = Depends(get_current_user)
 ):
 
-    await require_permission("attendance", current_user)
-
     records = await db.attendance.find(
         {"attendance_type": attendance_type}, {"_id": 0}
     ).to_list(5000)
@@ -1128,26 +1433,125 @@ async def get_attendance_history(
 
     for record in records:
 
-        date = record["date"]
+        group_key = (record["date"], record.get("event_name") or "")
 
-        if date not in grouped:
-
-            grouped[date] = {
-                "date": date,
+        if group_key not in grouped:
+            grouped[group_key] = {
+                "date": record["date"],
                 "attendance_type": attendance_type,
+                "event_name": record.get("event_name"),
                 "present": 0,
                 "absent": 0,
             }
 
         if record["status"] == "present":
-
-            grouped[date]["present"] += 1
-
+            grouped[group_key]["present"] += 1
         else:
+            grouped[group_key]["absent"] += 1
 
-            grouped[date]["absent"] += 1
+    result = list(grouped.values())
 
-    return list(grouped.values())
+    result.sort(
+        key=lambda x: (x["date"], x.get("event_name") or ""),
+        reverse=True,
+    )
+
+    return result
+
+
+@api_router.get("/attendance/overall-stats/{attendance_type}")
+async def get_overall_attendance_stats(
+    attendance_type: str,
+    current_user: User = Depends(get_current_user),
+):
+    await require_permission("attendance", current_user)
+
+    records = await db.attendance.find(
+        {"attendance_type": attendance_type},
+        {
+            "_id": 0,
+            "date": 1,
+            "event_name": 1,
+            "status": 1,
+        },
+    ).to_list(10000)
+
+    present = len([r for r in records if r["status"] == "present"])
+
+    absent = len([r for r in records if r["status"] == "absent"])
+
+    total = present + absent
+
+    percentage = round((present / total) * 100, 2) if total > 0 else 0
+
+    sessions = len(set((r["date"], r.get("event_name")) for r in records))
+
+    return {
+        "sessions": sessions,
+        "present": present,
+        "absent": absent,
+        "percentage": percentage,
+    }
+
+
+@api_router.get("/attendance/export")
+async def export_attendance(
+    attendance_type: str,
+    start_month: Optional[str] = None,
+    end_month: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
+):
+    await require_permission(
+        "attendance",
+        current_user,
+    )
+
+    query = {"attendance_type": attendance_type}
+
+    if start_month and end_month:
+        query["date"] = {"$gte": f"{start_month}-01", "$lte": f"{end_month}-31"}
+
+    records = await db.attendance.find(query).to_list(10000)
+
+    if start_month and end_month:
+        query["date"] = {"$gte": f"{start_month}-01", "$lte": f"{end_month}-31"}
+
+    export_rows = []
+
+    for record in records:
+
+        user = await db.users.find_one(
+            {"user_id": record["user_id"]},
+            {
+                "_id": 0,
+                "name": 1,
+                "its_no": 1,
+            },
+        )
+
+        export_rows.append(
+            {
+                "date": record["date"],
+                "attendance_type": record["attendance_type"],
+                "event_name": record.get("event_name"),
+                "name": user.get("name", "") if user else "",
+                "its_no": user.get("its_no", "") if user else "",
+                "status": record["status"],
+            }
+        )
+
+    filename = f"attendance_{attendance_type}.xlsx"
+
+    file_path = generate_attendance_excel(
+        export_rows,
+        filename,
+    )
+
+    return FileResponse(
+        path=file_path,
+        filename=filename,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
 
 
 # ============= FEES ENDPOINTS =============
@@ -1155,14 +1559,18 @@ async def get_attendance_history(
 
 @api_router.post("/fees")
 async def update_fee(
-    fee_data: UpdateFeeRequest, current_user: User = Depends(get_current_user)
+    fee_data: UpdateFeeRequest,
+    current_user: User = Depends(get_current_user),
 ):
-    """Update fee record"""
+    """Create or update fee record"""
 
     await require_permission("fees", current_user)
 
     existing = await db.fees.find_one(
-        {"user_id": fee_data.user_id, "month": fee_data.month}
+        {
+            "user_id": fee_data.user_id,
+            "month": fee_data.month,
+        }
     )
 
     if existing:
@@ -1179,7 +1587,7 @@ async def update_fee(
             },
         )
 
-        return {"message": "Fee updated"}
+        message = "Fee updated successfully"
 
     else:
 
@@ -1194,7 +1602,18 @@ async def update_fee(
 
         await db.fees.insert_one(new_fee.dict())
 
-        return {"message": "Fee record created"}
+        message = "Fee created successfully"
+
+    # Notification
+    notification = NotificationRecord(
+        user_id=fee_data.user_id,
+        title="Fee Updated",
+        message=f"Fee status for {fee_data.month} changed to {fee_data.status}",
+    )
+
+    await db.notifications.insert_one(notification.dict())
+
+    return {"message": message}
 
 
 @api_router.get("/fees/my")
@@ -1556,6 +1975,13 @@ async def assign_tag(
     await db.users.update_one(
         {"user_id": tag_data.user_id}, {"$set": {"tag": tag_data.tag}}
     )
+    notification = NotificationRecord(
+        user_id=tag_data.user_id,
+        title="Tag Assigned",
+        message=f"You have been assigned tag: {tag_data.tag}",
+    )
+
+    await db.notifications.insert_one(notification.dict())
 
     return {"message": "Tag assigned"}
 
@@ -1571,6 +1997,13 @@ async def assign_badge(
     await db.users.update_one(
         {"user_id": badge_data.user_id}, {"$set": {"badge": badge_data.badge}}
     )
+    notification = NotificationRecord(
+        user_id=badge_data.user_id,
+        title="Badge Awarded",
+        message=f"You have received {badge_data.badge} badge",
+    )
+
+    await db.notifications.insert_one(notification.dict())
 
     return {"message": "Badge assigned successfully"}
 
@@ -1609,9 +2042,7 @@ async def get_user_profile(
 ):
     """Get detailed user profile"""
 
-    can_view_private = current_user.role == "admin" or (
-        current_user.permissions and current_user.permissions.members
-    )
+    can_view_private = current_user.role == "admin"
 
     user_doc = await db.users.find_one(
         {"user_id": user_id}, {"_id": 0, "password_hash": 0}
@@ -1696,6 +2127,9 @@ async def get_user_profile(
         "instrument": user_doc.get("instrument"),
         "joining_year": user_doc.get("joining_year"),
         "badge": user_doc.get("badge"),
+        "birth_date": user_doc.get("birth_date"),
+        "age": user_doc.get("age"),
+        "tag": user_doc.get("tag"),
     }
     if can_view_private:
         public_user.update(
@@ -1704,8 +2138,6 @@ async def get_user_profile(
                 "phone": user_doc.get("phone"),
                 "email_id": user_doc.get("email_id"),
                 "parent_contact": user_doc.get("parent_contact"),
-                "birth_date": user_doc.get("birth_date"),
-                "age": user_doc.get("age"),
                 "permissions": user_doc.get("permissions"),
             }
         )
@@ -1772,13 +2204,41 @@ async def admin_reset_password(
 
 @app.on_event("startup")
 async def create_admin():
-    """Create admin user if not exists"""
-    admin_username = "vajihiadmin@53"
-    admin_password = "vajihiscout53"
+    await db.users.create_index("its_no")
+    await db.users.create_index("role")
+    await db.password_reset_otps.create_index("expires_at", expireAfterSeconds=0)
+    await db.notifications.create_index("created_at", expireAfterSeconds=43200)
+    await db.user_sessions.create_index("expires_at", expireAfterSeconds=0)
+    await db.users.create_index("user_id", unique=True)
+    await db.users.create_index("username", unique=True)
+    await db.attendance.create_index(
+        [
+            ("user_id", 1),
+            ("attendance_type", 1),
+            ("event_name", 1),
+            ("date", 1),
+        ],
+        unique=True,
+    )
+    await db.attendance.create_index([("attendance_type", 1), ("date", -1)])
+
+    await db.attendance.create_index([("date", -1)])
+
+    await db.attendance.create_index([("user_id", 1), ("date", -1)])
+    await db.fees.create_index([("user_id", 1), ("month", 1)], unique=True)
+
+    await cleanup_old_notifications()
+
+    await db.notifications.create_index([("user_id", 1)])
+    await db.notifications.create_index([("created_at", -1)])
+
+    admin_username = os.environ["ADMIN_USERNAME"]
+    admin_password = os.environ["ADMIN_PASSWORD"]
 
     existing_admin = await db.users.find_one({"username": admin_username})
 
     if not existing_admin:
+
         admin_id = f"admin_{uuid.uuid4().hex[:12]}"
         password_hash = hash_password(admin_password)
 
@@ -1799,11 +2259,14 @@ async def create_admin():
                 "members": True,
             },
             "tag": None,
+            "expo_push_token": None,
             "created_at": datetime.now(timezone.utc),
         }
 
         await db.users.insert_one(admin_user)
+
         logger.info(f"Admin user created: {admin_username}")
+        """Create admin user if not exists"""
 
 
 # Include the router in the main app

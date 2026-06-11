@@ -2,7 +2,7 @@ import React, {
     useEffect,
     useState,
 } from 'react';
-
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
     View,
     Text,
@@ -13,7 +13,7 @@ import {
     Alert,
 } from 'react-native';
 
-import { SafeAreaView } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import {
     useLocalSearchParams,
@@ -28,10 +28,18 @@ export default function AttendanceDetailsScreen() {
     const router = useRouter();
     const { user } = useAuth();
 
-    const { type, date } =
+    const { type, date, event_name } =
         useLocalSearchParams();
     const canManageAttendance =
+        user?.role === 'admin' ||
         user?.permissions?.attendance;
+    const formattedDate =
+        new Date(String(date))
+            .toLocaleDateString('en-IN', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+            });
 
     const isAdmin =
         user?.role === 'admin';
@@ -52,8 +60,18 @@ export default function AttendanceDetailsScreen() {
 
         try {
 
+            const token = await AsyncStorage.getItem('session_token');
+            if (!token) return;
+
             const response = await fetch(
-                `${process.env.EXPO_PUBLIC_BACKEND_URL}/api/attendance/history-details/${type}/${date}`
+                `${process.env.EXPO_PUBLIC_BACKEND_URL}/api/attendance/history-details/${type}/${date}?event_name=${encodeURIComponent(
+                    String(event_name || '')
+                )}`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                }
             );
 
             const data =
@@ -105,15 +123,20 @@ export default function AttendanceDetailsScreen() {
 
                         try {
 
-                            const response =
-                                await fetch(
-                                    `${process.env.EXPO_PUBLIC_BACKEND_URL}/api/attendance/session/${type}/${date}`,
-                                    {
-                                        method: 'DELETE',
-                                        credentials: 'include',
-                                    }
-                                );
+                            const token = await AsyncStorage.getItem('session_token');
+                            if (!token) return;
 
+                            const response = await fetch(
+                                `${process.env.EXPO_PUBLIC_BACKEND_URL}/api/attendance/session/${type}/${date}?event_name=${encodeURIComponent(
+                                    String(event_name || '')
+                                )}`,
+                                {
+                                    method: 'DELETE',
+                                    headers: {
+                                        Authorization: `Bearer ${token}`,
+                                    },
+                                }
+                            );
                             const data =
                                 await response.json();
 
@@ -123,7 +146,7 @@ export default function AttendanceDetailsScreen() {
                             );
 
                             router.replace(
-                                '/attendance-history'
+                                `/attendance-history?type=${type}`
                             );
 
                         } catch (error) {
@@ -142,8 +165,9 @@ export default function AttendanceDetailsScreen() {
 
     return (
 
-        <View
+        <SafeAreaView
             style={styles.container}
+            edges={['top']}
         >
 
             <LinearGradient
@@ -167,14 +191,26 @@ export default function AttendanceDetailsScreen() {
 
                     <View>
 
-                        <Text style={styles.headerTitle}>
+                        <Text style={styles.headerTitle}
+                            allowFontScaling={false}>
                             Attendance Details
                         </Text>
 
                         <Text style={styles.headerSubtitle}>
-                            {type} • {date}
+                            {type} • {formattedDate}
                         </Text>
 
+                        {event_name ? (
+                            <Text
+                                style={{
+                                    color: 'rgba(255,255,255,0.8)',
+                                    marginTop: 4,
+                                    fontSize: 14,
+                                }}
+                            >
+                                {event_name}
+                            </Text>
+                        ) : null}
                     </View>
 
                 </View>
@@ -201,60 +237,86 @@ export default function AttendanceDetailsScreen() {
 
                     <View style={styles.sectionCard}>
 
-                        <Text style={styles.sectionTitle}>
+                        <Text style={styles.sectionTitle}
+                            allowFontScaling={false}>
                             Present Members ({presentMembers.length})
                         </Text>
 
-                        {presentMembers.map(
-                            (member, index) => (
+                        {presentMembers.length === 0 ? (
+
+                            <Text
+                                style={styles.emptyText}
+                                allowFontScaling={false}
+                            >
+                                No present members found
+                            </Text>
+
+                        ) : (
+
+                            presentMembers.map((member, index) => (
 
                                 <View
-                                    key={index}
+                                    key={`${member.its_no || member.name}-${index}`}
                                     style={styles.memberRow}
                                 >
 
-                                    <View
-                                        style={styles.presentDot}
-                                    />
+                                    <View style={styles.presentDot} />
 
                                     <Text
                                         style={styles.memberName}
+                                        numberOfLines={1}
+                                        allowFontScaling={false}
                                     >
                                         {member.name}
                                     </Text>
 
                                 </View>
-                            )
+
+                            ))
+
                         )}
 
                     </View>
 
                     <View style={styles.sectionCard}>
 
-                        <Text style={styles.sectionTitle}>
+                        <Text style={styles.sectionTitle}
+                            allowFontScaling={false}>
                             Absent Members ({absentMembers.length})
                         </Text>
 
-                        {absentMembers.map(
-                            (member, index) => (
+                        {absentMembers.length === 0 ? (
+
+                            <Text
+                                style={styles.emptyText}
+                                allowFontScaling={false}
+                            >
+                                No absent members found
+                            </Text>
+
+                        ) : (
+
+                            absentMembers.map((member, index) => (
 
                                 <View
-                                    key={index}
+                                    key={`${member.its_no || member.name}-${index}`}
                                     style={styles.memberRow}
                                 >
 
-                                    <View
-                                        style={styles.absentDot}
-                                    />
+                                    <View style={styles.absentDot} />
 
                                     <Text
                                         style={styles.memberName}
+                                        numberOfLines={1}
+                                        allowFontScaling={false}
                                     >
                                         {member.name}
                                     </Text>
 
                                 </View>
-                            )
+
+                            ))
+
                         )}
 
                     </View>
@@ -268,13 +330,15 @@ export default function AttendanceDetailsScreen() {
                                     params: {
                                         attendanceType: type,
                                         selectedDate: date,
+                                        eventName: event_name,
                                         editMode: 'true',
                                     },
                                 })
                             }
                         >
 
-                            <Text style={styles.editButtonText}>
+                            <Text style={styles.editButtonText}
+                                allowFontScaling={false}>
                                 Edit Attendance
                             </Text>
 
@@ -288,7 +352,8 @@ export default function AttendanceDetailsScreen() {
                             onPress={deleteSession}
                         >
 
-                            <Text style={styles.deleteButtonText}>
+                            <Text style={styles.deleteButtonText}
+                                allowFontScaling={false}>
                                 Delete Session
                             </Text>
 
@@ -298,8 +363,8 @@ export default function AttendanceDetailsScreen() {
                 </ScrollView>
 
             )}
+        </SafeAreaView>
 
-        </View>
     );
 }
 
@@ -388,9 +453,15 @@ const styles = StyleSheet.create({
     },
 
     memberName: {
+        flex: 1,
         fontSize: 16,
         color: '#16162E',
         marginLeft: 12,
+    },
+    emptyText: {
+        textAlign: 'center',
+        color: '#999',
+        paddingVertical: 20,
     },
 
     presentDot: {

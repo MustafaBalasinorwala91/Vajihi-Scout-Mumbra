@@ -1,3 +1,4 @@
+import { useAuth } from '../../contexts/AuthContext';
 import React, {
   useEffect,
   useState,
@@ -27,14 +28,18 @@ import {
   feeService,
   DetailedFeeRecord,
 } from '../../services/FeeService';
-
+import NotificationBell from '../../components/common/NotificationBell';
 export default function FeesScreen() {
-  const [fees, setFees] = useState<DetailedFeeRecord[]>([]);
+  const { user } = useAuth();
+  const [fees, setFees] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] =
     useState(false);
   const [searchText, setSearchText] = useState('');
   const router = useRouter();
+  const canManageFees =
+    user?.role === 'admin' ||
+    user?.permissions?.fees;
 
   const [stats, setStats] = useState({
     totalPaid: 0,
@@ -55,7 +60,23 @@ export default function FeesScreen() {
   const loadFees = async () => {
     try {
 
-      const data = await feeService.getAllDetailedFees();
+      let data;
+
+      const canManageFees =
+        user?.role === 'admin' ||
+        user?.permissions?.fees;
+
+      if (canManageFees) {
+
+        data = await feeService.getAllDetailedFees();
+
+      } else {
+
+        const response =
+          await feeService.getMyFees();
+
+        data = response.fees;
+      }
 
       setFees(data);
 
@@ -83,8 +104,8 @@ export default function FeesScreen() {
   };
 
   const filteredFees = fees.filter((fee) =>
-    fee.member_name
-      ?.toLowerCase()
+    (fee.member_name || user?.name || '')
+      .toLowerCase()
       .includes(searchText.toLowerCase())
   );
 
@@ -113,33 +134,24 @@ export default function FeesScreen() {
           style={styles.header}
         >
 
-          <View style={styles.headerOverlay} />
 
           <View style={styles.headerTop}>
 
-            <View>
+            <View style={{ flex: 1 }}>
               <Text style={styles.headerTitle}>
                 Fees
               </Text>
 
-              <Text style={styles.headerSubtitle}>
+              <Text
+                style={styles.headerSubtitle}
+                numberOfLines={1}
+              >
                 Manage member fees and payments
               </Text>
             </View>
 
-            <TouchableOpacity style={styles.bellButton}>
-              <Ionicons
-                name="notifications-outline"
-                size={24}
-                color="#fff"
-              />
-
-              <View style={styles.notificationDot} />
-            </TouchableOpacity>
-
+            <NotificationBell size={34} />
           </View>
-
-          <View style={styles.wave} />
 
         </LinearGradient>
 
@@ -168,7 +180,8 @@ export default function FeesScreen() {
 
               <Text style={styles.summaryAmount}
                 numberOfLines={1}
-                adjustsFontSizeToFit>
+                adjustsFontSizeToFit
+                minimumFontScale={0.7}>
                 ₹{stats.totalPaid}
               </Text>
 
@@ -205,7 +218,8 @@ export default function FeesScreen() {
 
               <Text style={styles.summaryAmount}
                 numberOfLines={1}
-                adjustsFontSizeToFit>
+                adjustsFontSizeToFit
+                minimumFontScale={0.7}>
                 ₹{stats.totalDue}
               </Text>
 
@@ -225,88 +239,91 @@ export default function FeesScreen() {
         </View>
 
         {/* QUICK ACTIONS */}
-        <View style={styles.quickActions}>
+        {canManageFees && (
+          <View style={styles.quickActions}>
 
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => router.push('../admin/manage-fees')}
-          >
-            <View
-              style={[
-                styles.actionIcon,
-                { backgroundColor: '#6C4DFF' },
-              ]}
+
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => router.push('../admin/manage-fees')}
             >
-              <Ionicons
-                name="person-add"
-                size={22}
-                color="#fff"
-              />
-            </View>
+              <View
+                style={[
+                  styles.actionIcon,
+                  { backgroundColor: '#6C4DFF' },
+                ]}
+              >
+                <Ionicons
+                  name="person-add"
+                  size={22}
+                  color="#fff"
+                />
+              </View>
 
-            <Text style={styles.actionText}>
-              Add Payment
-            </Text>
-          </TouchableOpacity>
+              <Text style={styles.actionText}>
+                Add Payment
+              </Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionButton}>
-            <View
-              style={[
-                styles.actionIcon,
-                { backgroundColor: '#2DA8FF' },
-              ]}
-            >
-              <Ionicons
-                name="document-text"
-                size={22}
-                color="#fff"
-              />
-            </View>
+            <TouchableOpacity style={styles.actionButton}>
+              <View
+                style={[
+                  styles.actionIcon,
+                  { backgroundColor: '#2DA8FF' },
+                ]}
+              >
+                <Ionicons
+                  name="document-text"
+                  size={22}
+                  color="#fff"
+                />
+              </View>
 
-            <Text style={styles.actionText}>
-              Fee Structure
-            </Text>
-          </TouchableOpacity>
+              <Text style={styles.actionText}>
+                Fee Structure
+              </Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionButton}>
-            <View
-              style={[
-                styles.actionIcon,
-                { backgroundColor: '#FFB020' },
-              ]}
-            >
-              <Ionicons
-                name="notifications"
-                size={22}
-                color="#fff"
-              />
-            </View>
+            <TouchableOpacity style={styles.actionButton}>
+              <View
+                style={[
+                  styles.actionIcon,
+                  { backgroundColor: '#FFB020' },
+                ]}
+              >
+                <Ionicons
+                  name="notifications"
+                  size={22}
+                  color="#fff"
+                />
+              </View>
 
-            <Text style={styles.actionText}>
-              Reminders
-            </Text>
-          </TouchableOpacity>
+              <Text style={styles.actionText}>
+                Reminders
+              </Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionButton}>
-            <View
-              style={[
-                styles.actionIcon,
-                { backgroundColor: '#7A5AF8' },
-              ]}
-            >
-              <Ionicons
-                name="download"
-                size={22}
-                color="#fff"
-              />
-            </View>
+            <TouchableOpacity style={styles.actionButton}>
+              <View
+                style={[
+                  styles.actionIcon,
+                  { backgroundColor: '#7A5AF8' },
+                ]}
+              >
+                <Ionicons
+                  name="download"
+                  size={22}
+                  color="#fff"
+                />
+              </View>
 
-            <Text style={styles.actionText}>
-              Export
-            </Text>
-          </TouchableOpacity>
+              <Text style={styles.actionText}>
+                Export
+              </Text>
+            </TouchableOpacity>
 
-        </View>
+          </View>
+        )}
 
         {/* SEARCH */}
         <View style={styles.searchContainer}>
@@ -342,66 +359,69 @@ export default function FeesScreen() {
         </View>
 
         {/* REMINDER CARD */}
-        <LinearGradient
-          colors={['#F5EDFF', '#FFFFFF']}
-          style={styles.reminderCard}
-        >
+        {canManageFees && (
+          <LinearGradient
+            colors={['#F5EDFF', '#FFFFFF']}
+            style={styles.reminderCard}
+          >
 
-          <View style={styles.reminderLeft}>
+            <View style={styles.reminderLeft}>
 
-            <LinearGradient
-              colors={['#7A5AF8', '#5B3DF5']}
-              style={styles.reminderIcon}
-            >
-              <Ionicons
-                name="notifications"
-                size={24}
-                color="#fff"
-              />
-            </LinearGradient>
+              <LinearGradient
+                colors={['#7A5AF8', '#5B3DF5']}
+                style={styles.reminderIcon}
+              >
+                <Ionicons
+                  name="notifications"
+                  size={24}
+                  color="#fff"
+                />
+              </LinearGradient>
 
-            <View style={{ flex: 1, paddingRight: 8 }}>
-              <Text style={styles.reminderTitle}>
-                Send Fee Reminder
-              </Text>
+              <View style={{ flex: 1, paddingRight: 8 }}>
+                <Text style={styles.reminderTitle}>
+                  Send Fee Reminder
+                </Text>
 
-              <Text style={styles.reminderSubtitle}>
-                Remind members who have pending dues
-              </Text>
+                <Text style={styles.reminderSubtitle}>
+                  Remind members who have pending dues
+                </Text>
+              </View>
+
             </View>
 
-          </View>
+            <TouchableOpacity
+              onPress={async () => {
+                try {
+                  const result =
+                    await feeService.sendReminders();
 
-          <TouchableOpacity
-            onPress={async () => {
-              try {
-                const result = await feeService.sendReminders();
-                alert(result.message);
-              } catch (error) {
-                alert('Failed to send reminders');
-              }
-            }}
-          >
-            <LinearGradient
-              colors={['#7A5AF8', '#5B3DF5']}
-              style={styles.sendButton}
+                  alert(result.message);
+                } catch (error) {
+                  alert('Failed to send reminders');
+                }
+              }}
             >
+              <LinearGradient
+                colors={['#7A5AF8', '#5B3DF5']}
+                style={styles.sendButton}
+              >
 
-              <Ionicons
-                name="paper-plane"
-                size={16}
-                color="#fff"
-              />
+                <Ionicons
+                  name="paper-plane"
+                  size={16}
+                  color="#fff"
+                />
 
-              <Text style={styles.sendButtonText}>
-                Send Now
-              </Text>
+                <Text style={styles.sendButtonText}>
+                  Send Now
+                </Text>
 
-            </LinearGradient>
-          </TouchableOpacity>
+              </LinearGradient>
+            </TouchableOpacity>
 
-        </LinearGradient>
-
+          </LinearGradient>
+        )}
         {/* HISTORY */}
         <View style={styles.historyCard}>
 
@@ -473,7 +493,11 @@ export default function FeesScreen() {
                           color: '#16162E',
                         }}
                       >
-                        {fee.member_name}
+                        {
+                          fee.member_name ||
+                          user?.name ||
+                          'Member'
+                        }
                       </Text>
 
                       <Text
@@ -577,7 +601,12 @@ export default function FeesScreen() {
               color="#FFB020"
             />
 
-            <Text style={styles.statValue}>
+            <Text
+              style={styles.statValue}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.7}
+            >
               {stats.collectionRate.toFixed(0)}%
             </Text>
 
@@ -593,7 +622,12 @@ export default function FeesScreen() {
               color="#FF5A5F"
             />
 
-            <Text style={styles.statValue}>
+            <Text
+              style={styles.statValue}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.7}
+            >
               ₹{stats.thisMonthDue}
             </Text>
 
@@ -606,7 +640,7 @@ export default function FeesScreen() {
 
       </ScrollView>
 
-    </View>
+    </View >
   );
 }
 
@@ -620,38 +654,27 @@ const styles = StyleSheet.create({
   header: {
     paddingTop: 70,
     paddingHorizontal: 24,
-    paddingBottom: 140,
+    paddingBottom: 110, // was 140
     borderBottomLeftRadius: 40,
     borderBottomRightRadius: 40,
-    overflow: 'hidden',
-  },
-
-  headerOverlay: {
-    position: 'absolute',
-    width: 350,
-    height: 350,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderRadius: 200,
-    top: -120,
-    right: -100,
   },
 
   headerTop: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'flex-start',
+    justifyContent: 'space-between',
   },
 
   headerTitle: {
     color: '#fff',
-    fontSize: 40,
+    fontSize: 36, // instead of 40
     fontWeight: '800',
   },
-
   headerSubtitle: {
     color: '#E5D9FF',
     fontSize: 17,
     marginTop: 10,
+    paddingRight: 20,
   },
 
   bellButton: {
@@ -665,23 +688,12 @@ const styles = StyleSheet.create({
 
   notificationDot: {
     position: 'absolute',
-    top: 12,
+    top: 10,
     right: 12,
     width: 10,
     height: 10,
     borderRadius: 5,
     backgroundColor: '#FF4B4B',
-  },
-
-  wave: {
-    position: 'absolute',
-    bottom: -40,
-    left: -20,
-    right: -20,
-    height: 80,
-    backgroundColor: '#F5F6FA',
-    borderTopLeftRadius: 100,
-    borderTopRightRadius: 100,
   },
 
   summaryContainer: {
@@ -744,8 +756,8 @@ const styles = StyleSheet.create({
     borderRadius: 28,
     paddingVertical: 20,
     flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'space-around',
-
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -758,6 +770,7 @@ const styles = StyleSheet.create({
 
   actionButton: {
     alignItems: 'center',
+    width: '25%',
   },
 
   actionIcon: {
@@ -854,9 +867,9 @@ const styles = StyleSheet.create({
   },
 
   reminderLeft: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    width: '62%',
   },
 
   reminderIcon: {

@@ -1,3 +1,5 @@
+import { wp, hp } from '../utils/responsive';
+import { rf } from '../utils/fonts';
 import React, { useState } from 'react';
 import {
   View,
@@ -18,68 +20,181 @@ import { Ionicons } from '@expo/vector-icons';
 export default function ForgotPasswordScreen() {
   const router = useRouter();
   const [its_no, setITS_no] = useState('');
+  const [otp, setOtp] = useState('');
+
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpVerified, setOtpVerified] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const handleResetPassword = async () => {
-    if (!its_no || !newPassword || !confirmPassword) {
-      Alert.alert('Error', 'Please fill in all fields');
+  const handleSendOTP = async () => {
+    if (!its_no) {
+      Alert.alert('Error', 'Enter ITS Number');
       return;
     }
 
-    if (newPassword !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match');
-      return;
-    }
-
-    const passwordRegex =
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/;
-
-    if (!passwordRegex.test(newPassword)) {
-      Alert.alert(
-        'Weak Password',
-        'Password must contain:\n• 8+ characters\n• Uppercase letter\n• Lowercase letter\n• Number\n• Special character'
-      );
-      return;
-    }
-
-    setLoading(true);
     try {
-      const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
-      const response = await fetch(`${BACKEND_URL}/api/auth/simple-reset-password`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          username: its_no,
-          new_password: newPassword,
-          confirm_password: confirmPassword,
-        }),
-      });
+      setLoading(true);
+
+      const BACKEND_URL =
+        process.env.EXPO_PUBLIC_BACKEND_URL;
+
+      const response = await fetch(
+        `${BACKEND_URL}/api/auth/send-reset-otp`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            username: its_no,
+          }),
+        }
+      );
+
+      const data = await response.json();
 
       if (response.ok) {
-        Alert.alert('Success', 'Password reset successfully! Please login with your new password.', [
-          {
-            text: 'OK',
-            onPress: () => router.replace('/login'),
-          },
-        ]);
+        setOtpSent(true);
+
+        Alert.alert(
+          'OTP Sent',
+          'Please check your registered email.'
+        );
       } else {
-        const error = await response.json();
-        Alert.alert('Error', error.detail || 'Failed to reset password');
+        Alert.alert(
+          'Error',
+          data.detail || 'Failed to send OTP'
+        );
       }
-    } catch (error) {
-      console.error('Reset password error:', error);
-      Alert.alert('Error', 'Failed to reset password. Please try again.');
+    } catch {
+      Alert.alert('Error', 'Network error');
     } finally {
       setLoading(false);
     }
   };
 
+  const handleVerifyOTP = async () => {
+    if (!otp) {
+      Alert.alert('Error', 'Enter OTP');
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const BACKEND_URL =
+        process.env.EXPO_PUBLIC_BACKEND_URL;
+
+      const response = await fetch(
+        `${BACKEND_URL}/api/auth/verify-reset-otp`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            username: its_no,
+            otp,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setOtpVerified(true);
+
+        Alert.alert(
+          'Success',
+          'OTP verified successfully'
+        );
+      } else {
+        Alert.alert(
+          'Error',
+          data.detail || 'Invalid OTP'
+        );
+      }
+    } catch {
+      Alert.alert('Error', 'Network error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!newPassword || !confirmPassword) {
+      Alert.alert('Error', 'Fill all fields');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      Alert.alert(
+        'Error',
+        'Passwords do not match'
+      );
+      return;
+    }
+    if (newPassword.length < 6) {
+      Alert.alert(
+        'Error',
+        'Password must be at least 6 characters'
+      );
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const BACKEND_URL =
+        process.env.EXPO_PUBLIC_BACKEND_URL;
+
+      const response = await fetch(
+        `${BACKEND_URL}/api/auth/reset-password-with-otp`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            username: its_no,
+            otp,
+            new_password: newPassword,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (response.ok) {
+        Alert.alert(
+          'Success',
+          'Password reset successfully',
+          [
+            {
+              text: 'Login',
+              onPress: () =>
+                router.replace('/login'),
+            },
+          ]
+        );
+      } else {
+        Alert.alert(
+          'Error',
+          data.detail ||
+          'Failed to reset password'
+        );
+      }
+    } catch {
+      Alert.alert('Error', 'Network error');
+    } finally {
+      setLoading(false);
+    }
+  };
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -93,85 +208,179 @@ export default function ForgotPasswordScreen() {
         />
 
         <Text style={styles.title}>Reset Password</Text>
-        <Text style={styles.subtitle}>Enter your username and new password</Text>
+        <Text style={styles.subtitle}>
+          Reset your password using OTP verification
+        </Text>
 
         <View style={styles.card}>
           <View style={styles.inputContainer}>
-            <Ionicons name="person-outline" size={20} color="#666" style={styles.inputIcon} />
+            <Ionicons
+              name="person-outline"
+              size={20}
+              color="#666"
+              style={styles.inputIcon}
+            />
+
             <TextInput
               style={styles.input}
-              placeholder="ITS_No"
+              placeholder="ITS Number"
               placeholderTextColor="#999"
               value={its_no}
+              keyboardType="numeric"
+              maxLength={8}
+              editable={!otpSent}
               onChangeText={setITS_no}
-              autoCapitalize="none"
-              autoCorrect={false}
             />
           </View>
 
-          <View style={styles.inputContainer}>
-            <Ionicons name="lock-closed-outline" size={20} color="#666" style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="New Password"
-              placeholderTextColor="#999"
-              value={newPassword}
-              onChangeText={setNewPassword}
-              secureTextEntry={!showNewPassword}
-              autoCapitalize="none"
-            />
+          {!otpSent && (
             <TouchableOpacity
-              onPress={() => setShowNewPassword(!showNewPassword)}
-              style={styles.eyeIcon}
+              style={styles.button}
+              onPress={handleSendOTP}
+              disabled={loading}
             >
-              <Ionicons
-                name={showNewPassword ? 'eye-off-outline' : 'eye-outline'}
-                size={20}
-                color="#666"
-              />
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.buttonText}>
+                  Send OTP
+                </Text>
+              )}
             </TouchableOpacity>
-          </View>
+          )}
 
-          <View style={styles.inputContainer}>
-            <Ionicons name="lock-closed-outline" size={20} color="#666" style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Confirm Password"
-              placeholderTextColor="#999"
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              secureTextEntry={!showConfirmPassword}
-              autoCapitalize="none"
-            />
-            <TouchableOpacity
-              onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-              style={styles.eyeIcon}
-            >
-              <Ionicons
-                name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}
-                size={20}
-                color="#666"
-              />
-            </TouchableOpacity>
-          </View>
+          {otpSent && !otpVerified && (
+            <>
+              <View style={styles.inputContainer}>
+                <Ionicons
+                  name="mail-outline"
+                  size={20}
+                  color="#666"
+                  style={styles.inputIcon}
+                />
 
-          <TouchableOpacity
-            style={styles.button}
-            onPress={handleResetPassword}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.buttonText}>Reset Password</Text>
-            )}
-          </TouchableOpacity>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter OTP"
+                  placeholderTextColor="#999"
+                  value={otp}
+                  keyboardType="numeric"
+                  maxLength={6}
+                  onChangeText={setOtp}
+                />
+              </View>
+
+              <TouchableOpacity
+                style={styles.button}
+                onPress={handleVerifyOTP}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.buttonText}>
+                    Verify OTP
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </>
+          )}
+
+          {otpVerified && (
+            <>
+              <View style={styles.inputContainer}>
+                <Ionicons
+                  name="lock-closed-outline"
+                  size={20}
+                  color="#666"
+                  style={styles.inputIcon}
+                />
+
+                <TextInput
+                  style={styles.input}
+                  placeholder="New Password"
+                  placeholderTextColor="#999"
+                  value={newPassword}
+                  onChangeText={setNewPassword}
+                  secureTextEntry={!showNewPassword}
+                />
+
+                <TouchableOpacity
+                  onPress={() =>
+                    setShowNewPassword(!showNewPassword)
+                  }
+                >
+                  <Ionicons
+                    name={
+                      showNewPassword
+                        ? 'eye-off-outline'
+                        : 'eye-outline'
+                    }
+                    size={20}
+                    color="#666"
+                  />
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.inputContainer}>
+                <Ionicons
+                  name="lock-closed-outline"
+                  size={20}
+                  color="#666"
+                  style={styles.inputIcon}
+                />
+
+                <TextInput
+                  style={styles.input}
+                  placeholder="Confirm Password"
+                  placeholderTextColor="#999"
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  secureTextEntry={!showConfirmPassword}
+                />
+
+                <TouchableOpacity
+                  onPress={() =>
+                    setShowConfirmPassword(
+                      !showConfirmPassword
+                    )
+                  }
+                >
+                  <Ionicons
+                    name={
+                      showConfirmPassword
+                        ? 'eye-off-outline'
+                        : 'eye-outline'
+                    }
+                    size={20}
+                    color="#666"
+                  />
+                </TouchableOpacity>
+              </View>
+
+              <TouchableOpacity
+                style={styles.button}
+                onPress={handleResetPassword}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.buttonText}>
+                    Reset Password
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </>
+          )}
 
           <TouchableOpacity
             style={styles.loginLink}
             onPress={() => router.back()}
           >
-            <Text style={styles.loginLinkText}>Back to Login</Text>
+            <Text style={styles.loginLinkText}>
+              Back to Login
+            </Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -191,19 +400,21 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   logo: {
-    width: 120,
-    height: 120,
-    marginBottom: 16,
+    width: wp(32),
+    height: wp(32),
+    maxWidth: 140,
+    maxHeight: 140,
+    marginBottom: hp(2),
   },
   title: {
-    fontSize: 28,
+    fontSize: rf(28),
     fontWeight: 'bold',
     color: '#F8D57E',
     textAlign: 'center',
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: rf(14),
     color: '#F8D57E',
     textAlign: 'center',
     marginBottom: 24,
@@ -236,7 +447,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     paddingVertical: 14,
-    fontSize: 16,
+    fontSize: rf(16),
     color: '#1a1a2e',
   },
   eyeIcon: {
@@ -252,7 +463,7 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: '#ffffff',
-    fontSize: 16,
+    fontSize: rf(16),
     fontWeight: '600',
   },
   loginLink: {
@@ -260,7 +471,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   loginLinkText: {
-    fontSize: 14,
+    fontSize: rf(14),
     color: '#5B4FCE',
     fontWeight: '600',
   },

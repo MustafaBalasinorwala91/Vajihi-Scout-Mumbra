@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { format } from 'date-fns';
-
+import AsyncStorage from '@react-native-async-storage/async-storage';
 interface User {
   user_id: string;
   email_id?: string;
@@ -53,10 +53,14 @@ export default function ManageFeesScreen() {
   const fetchUsers = async () => {
     try {
       const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
-      const response = await fetch(`${BACKEND_URL}/api/users`, {
-        credentials: 'include',
-      });
+      const token = await AsyncStorage.getItem('session_token');
+      if (!token) return;
 
+      const response = await fetch(`${BACKEND_URL}/api/users`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
       if (response.ok) {
 
         const data = await response.json();
@@ -86,12 +90,14 @@ export default function ManageFeesScreen() {
     setSaving(true);
     try {
       const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
+      const token = await AsyncStorage.getItem('session_token');
+      if (!token) return;
       const response = await fetch(`${BACKEND_URL}/api/fees`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
         },
-        credentials: 'include',
         body: JSON.stringify({
           user_id: selectedUser.user_id,
           month: feeData.month,
@@ -140,12 +146,16 @@ export default function ManageFeesScreen() {
             setGeneratingFees(true);
             try {
               const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
+              const token = await AsyncStorage.getItem('session_token');
+              if (!token) return;
               const month = format(new Date(), 'yyyy-MM');
               const response = await fetch(
                 `${BACKEND_URL}/api/admin/generate-fees/${month}?amount=${parseFloat(monthlyAmount)}`,
                 {
                   method: 'POST',
-                  credentials: 'include',
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                  },
                 }
               );
 
@@ -185,10 +195,15 @@ export default function ManageFeesScreen() {
           onPress: async () => {
             try {
               const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
-              const response = await fetch(`${BACKEND_URL}/api/fees/${feeId}`, {
-                method: 'DELETE',
-                credentials: 'include',
-              });
+              const token = await AsyncStorage.getItem('session_token');
+              if (!token) return;
+              const response = await fetch(`${BACKEND_URL}/api/fees/${feeId}`,
+                {
+                  method: 'DELETE',
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                  },
+                });
 
               if (response.ok) {
                 Alert.alert('Success', 'Fee record deleted');

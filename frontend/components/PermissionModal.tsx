@@ -1,3 +1,5 @@
+import { wp, hp } from '../utils/responsive';
+import { rf } from '../utils/fonts';
 import React, { useEffect, useState } from 'react';
 import {
     Modal,
@@ -184,7 +186,7 @@ export default function PermissionModal({
                                     <View style={styles.iconContainer}>
                                         <Ionicons
                                             name={item.icon as any}
-                                            size={20}
+                                            size={rf(18)}
                                             color="#7B2FF7"
                                         />
                                     </View>
@@ -270,96 +272,142 @@ const styles = StyleSheet.create({
     overlay: {
         flex: 1,
         backgroundColor: 'rgba(0,0,0,0.5)',
+
         justifyContent: 'center',
-        padding: 20,
+
+        paddingHorizontal: wp('5%'),
+        paddingVertical: hp('2%'),
     },
 
     modalContainer: {
         backgroundColor: '#fff',
-        borderRadius: 24,
+
+        borderRadius: wp('6%'),
+
         overflow: 'hidden',
-        maxHeight: '85%',
+
+        maxHeight: hp('85%'),
     },
 
     header: {
-        padding: 24,
+        paddingHorizontal: wp('6%'),
+        paddingVertical: hp('3%'),
     },
 
     title: {
         color: '#fff',
-        fontSize: 24,
+
+        fontSize: rf(22),
+
         fontWeight: '700',
     },
 
     subtitle: {
         color: '#E9D5FF',
-        marginTop: 6,
-        fontSize: 15,
+
+        marginTop: hp('0.5%'),
+
+        fontSize: rf(14),
     },
 
     permissionCard: {
         flexDirection: 'row',
+
         justifyContent: 'space-between',
+
         alignItems: 'center',
-        padding: 18,
+
+        paddingHorizontal: wp('5%'),
+        paddingVertical: hp('2%'),
+
         borderBottomWidth: 1,
         borderBottomColor: '#F1F1F1',
     },
 
     leftSection: {
         flexDirection: 'row',
+
         alignItems: 'center',
+
+        flex: 1,
+
+        paddingRight: wp('3%'),
     },
 
     iconContainer: {
-        width: 40,
-        height: 40,
-        borderRadius: 12,
+        width: wp('10%'),
+        height: wp('10%'),
+
+        borderRadius: wp('3%'),
+
         backgroundColor: '#F3E8FF',
+
         justifyContent: 'center',
         alignItems: 'center',
-        marginRight: 14,
+
+        marginRight: wp('3.5%'),
     },
 
     permissionLabel: {
-        fontSize: 15,
+        flex: 1,
+
+        fontSize: rf(14),
+
         fontWeight: '600',
+
         color: '#222',
     },
 
     footer: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
-        padding: 20,
+
+        paddingHorizontal: wp('5%'),
+        paddingVertical: hp('2.2%'),
     },
 
     cancelButton: {
         flex: 1,
-        marginRight: 10,
+
+        marginRight: wp('2.5%'),
+
         borderWidth: 1,
         borderColor: '#DDD',
-        borderRadius: 14,
+
+        borderRadius: wp('3.5%'),
+
         justifyContent: 'center',
         alignItems: 'center',
+
+        minHeight: hp('6%'),
     },
 
     cancelText: {
         color: '#555',
+
         fontWeight: '600',
+
+        fontSize: rf(14),
     },
 
     saveButton: {
-        paddingHorizontal: 20,
-        paddingVertical: 14,
-        borderRadius: 14,
+        paddingHorizontal: wp('5%'),
+        paddingVertical: hp('1.8%'),
+
+        borderRadius: wp('3.5%'),
+
         justifyContent: 'center',
         alignItems: 'center',
+
+        minWidth: wp('35%'),
+        minHeight: hp('6%'),
     },
 
     saveText: {
         color: '#fff',
+
         fontWeight: '700',
-        fontSize: 15,
+
+        fontSize: rf(14),
     },
 
 });

@@ -17,16 +17,17 @@ interface User {
   phone?: string;
   email_id?: string;
   picture?: string;
+
   role: string;
+
   tag?: string;
+  badge?: string;
 
   age?: string;
   birth_date?: string;
   parent_contact?: string;
   instrument?: string;
   joining_year?: string;
-
-  uniform_size?: string;
 
   permissions?: {
     attendance: boolean;
@@ -41,12 +42,31 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   isAuthenticated: boolean;
+
   setUser: (user: User | null) => void;
+
+  saveUser: (
+    user: User,
+    token: string
+  ) => Promise<void>;
+
   logout: () => Promise<void>;
+
   checkAuth: () => Promise<void>;
+
+  hasPermission: (
+    permission:
+      | 'attendance'
+      | 'inventory'
+      | 'fees'
+      | 'uniforms'
+      | 'members'
+  ) => boolean;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AuthContext = createContext<
+  AuthContextType | undefined
+>(undefined);
 
 export function AuthProvider({
   children,
@@ -59,21 +79,60 @@ export function AuthProvider({
 
   const isAuthenticated = !!user;
 
+  const saveUser = async (
+    userData: User,
+    token: string
+  ) => {
+    await AsyncStorage.setItem(
+      'user',
+      JSON.stringify(userData)
+    );
+
+    await AsyncStorage.setItem(
+      'session_token',
+      token
+    );
+
+    setUser(userData);
+  };
+
+  const hasPermission = (
+    permission:
+      | 'attendance'
+      | 'inventory'
+      | 'fees'
+      | 'uniforms'
+      | 'members'
+  ) => {
+    if (!user) return false;
+
+    if (user.role === 'admin') return true;
+
+    return (
+      user.permissions?.[permission] ?? false
+    );
+  };
+
   const checkAuth = useCallback(async () => {
     try {
-      const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
+      const BACKEND_URL =
+        process.env.EXPO_PUBLIC_BACKEND_URL;
 
-      // LOAD CACHED USER FIRST
-      const storedUser = await AsyncStorage.getItem('user');
+      // Load cached user first
+      const storedUser =
+        await AsyncStorage.getItem('user');
 
       if (storedUser) {
         setUser(JSON.parse(storedUser));
       }
 
-      const token = await AsyncStorage.getItem('session_token');
+      const token =
+        await AsyncStorage.getItem(
+          'session_token'
+        );
 
       if (!token) {
-        setUser(null);
+        setLoading(false);
         return;
       }
 
@@ -81,17 +140,17 @@ export function AuthProvider({
         `${BACKEND_URL}/api/auth/me`,
         {
           method: 'GET',
-          credentials: 'include',
-
           headers: {
-            'Content-Type': 'application/json',
+            'Content-Type':
+              'application/json',
             Authorization: `Bearer ${token}`,
           },
         }
       );
 
       if (response.ok) {
-        const userData = await response.json();
+        const userData =
+          await response.json();
 
         setUser(userData);
 
@@ -100,18 +159,24 @@ export function AuthProvider({
           JSON.stringify(userData)
         );
       } else {
-        await AsyncStorage.removeItem('session_token');
-        await AsyncStorage.removeItem('user');
+        await AsyncStorage.removeItem(
+          'session_token'
+        );
+
+        await AsyncStorage.removeItem(
+          'user'
+        );
 
         setUser(null);
       }
     } catch (error) {
-      console.error('Auth check failed:', error);
+      console.error(
+        'Auth check failed:',
+        error
+      );
 
-      await AsyncStorage.removeItem('session_token');
-      await AsyncStorage.removeItem('user');
-
-      setUser(null);
+      // DON'T logout user on network failure
+      // Keep cached user
     } finally {
       setLoading(false);
     }
@@ -119,29 +184,40 @@ export function AuthProvider({
 
   const logout = async () => {
     try {
-      const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
+      const BACKEND_URL =
+        process.env.EXPO_PUBLIC_BACKEND_URL;
 
-      const token = await AsyncStorage.getItem('session_token');
+      const token =
+        await AsyncStorage.getItem(
+          'session_token'
+        );
 
-      await fetch(`${BACKEND_URL}/api/auth/logout`, {
-        method: 'POST',
-        credentials: 'include',
-
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: token ? `Bearer ${token}` : '',
-        },
-      });
-
-      await AsyncStorage.removeItem('session_token');
-      await AsyncStorage.removeItem('user');
-
-      setUser(null);
+      if (token) {
+        await fetch(
+          `${BACKEND_URL}/api/auth/logout`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type':
+                'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+      }
     } catch (error) {
-      console.error('Logout failed:', error);
+      console.error(
+        'Logout failed:',
+        error
+      );
+    } finally {
+      await AsyncStorage.removeItem(
+        'session_token'
+      );
 
-      await AsyncStorage.removeItem('session_token');
-      await AsyncStorage.removeItem('user');
+      await AsyncStorage.removeItem(
+        'user'
+      );
 
       setUser(null);
     }
@@ -157,9 +233,16 @@ export function AuthProvider({
         user,
         loading,
         isAuthenticated,
+
         setUser,
+
+        saveUser,
+
         logout,
+
         checkAuth,
+
+        hasPermission,
       }}
     >
       {children}
@@ -168,9 +251,10 @@ export function AuthProvider({
 }
 
 export function useAuth() {
-  const context = useContext(AuthContext);
+  const context =
+    useContext(AuthContext);
 
-  if (context === undefined) {
+  if (!context) {
     throw new Error(
       'useAuth must be used within an AuthProvider'
     );

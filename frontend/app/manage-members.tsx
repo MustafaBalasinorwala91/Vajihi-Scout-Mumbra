@@ -1,5 +1,7 @@
+import { wp, hp } from '../utils/responsive';
+import { rf } from '../utils/fonts';
 import React, { useEffect, useState } from 'react';
-
+import { useAuth } from '../contexts/AuthContext';
 import {
     View,
     Text,
@@ -46,6 +48,10 @@ interface Member {
 }
 
 export default function ManageMembersScreen() {
+    const { user } = useAuth();
+
+    const isAdmin =
+        user?.role === 'admin';
     const router = useRouter();
 
     const [members, setMembers] =
@@ -76,10 +82,19 @@ export default function ManageMembersScreen() {
             const BACKEND_URL =
                 process.env.EXPO_PUBLIC_BACKEND_URL;
 
+            const AsyncStorage =
+                require('@react-native-async-storage/async-storage').default;
+
+            const token =
+                await AsyncStorage.getItem('session_token');
+            if (!token) return;
+
             const response = await fetch(
                 `${BACKEND_URL}/api/attendance/members`,
                 {
-                    credentials: 'include',
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
                 }
             );
 
@@ -150,7 +165,9 @@ export default function ManageMembersScreen() {
                 )}
 
                 <View style={styles.memberInfo}>
-                    <Text style={styles.memberName}>
+                    <Text style={styles.memberName}
+                        numberOfLines={2}
+                    >
                         {item.name}
                     </Text>
 
@@ -158,12 +175,26 @@ export default function ManageMembersScreen() {
                         style={styles.memberDetails}
                         numberOfLines={1}
                     >
-                        {item.role} • {item.instrument || 'None'}
+                        {`${item.role?.charAt(0).toUpperCase()}${item.role?.slice(1) || ''} • ${item.instrument || 'None'}`}
                     </Text>
                 </View>
             </View>
 
             <View style={styles.actions}>
+
+                {isAdmin && (
+                    <TouchableOpacity
+                        style={styles.settingsButton}
+                        onPress={() => openPermissions(item)}
+                    >
+                        <Ionicons
+                            name="settings-outline"
+                            size={22}
+                            color="#fff"
+                        />
+                    </TouchableOpacity>
+                )}
+
                 <TouchableOpacity
                     style={styles.profileButton}
                     onPress={() =>
@@ -177,17 +208,6 @@ export default function ManageMembersScreen() {
                 >
                     <Ionicons
                         name="eye-outline"
-                        size={22}
-                        color="#fff"
-                    />
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                    style={styles.settingsButton}
-                    onPress={() => openPermissions(item)}
-                >
-                    <Ionicons
-                        name="settings-outline"
                         size={22}
                         color="#fff"
                     />
@@ -288,9 +308,9 @@ const styles = StyleSheet.create({
     },
 
     header: {
-        paddingTop: 70,
-        paddingBottom: 40,
-        paddingHorizontal: 24,
+        paddingTop: hp(7),
+        paddingBottom: hp(4),
+        paddingHorizontal: wp(6),
         borderBottomLeftRadius: 40,
         borderBottomRightRadius: 40,
         flexDirection: 'row',
@@ -298,9 +318,9 @@ const styles = StyleSheet.create({
     },
 
     backButton: {
-        width: 56,
-        height: 56,
-        borderRadius: 18,
+        width: wp(14),
+        height: wp(14),
+        borderRadius: wp(4),
         backgroundColor: 'rgba(255,255,255,0.15)',
         justifyContent: 'center',
         alignItems: 'center',
@@ -309,24 +329,24 @@ const styles = StyleSheet.create({
 
     headerTitle: {
         color: '#fff',
-        fontSize: 34,
+        fontSize: rf(26),
         fontWeight: 'bold',
     },
 
     headerSubtitle: {
         color: 'rgba(255,255,255,0.8)',
-        fontSize: 16,
+        fontSize: rf(14),
         marginTop: 4,
     },
 
     searchContainer: {
-        margin: 24,
+        height: hp(7),
+        margin: wp(6),
+        paddingHorizontal: wp(5),
         backgroundColor: '#fff',
         borderRadius: 24,
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 20,
-        height: 62,
     },
 
     searchInput: {
@@ -338,10 +358,10 @@ const styles = StyleSheet.create({
 
     memberCard: {
         backgroundColor: '#fff',
-        marginHorizontal: 20,
+        marginHorizontal: wp(5),
+        padding: wp(5),
+        borderRadius: wp(7),
         marginBottom: 18,
-        borderRadius: 28,
-        padding: 20,
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
@@ -363,9 +383,9 @@ const styles = StyleSheet.create({
     },
 
     avatar: {
-        width: 78,
-        height: 78,
-        borderRadius: 39,
+        width: wp(18),
+        height: wp(18),
+        borderRadius: wp(9),
         borderWidth: 2,
         borderColor: '#F3F0FF',
     },
@@ -385,34 +405,35 @@ const styles = StyleSheet.create({
     },
 
     memberName: {
-        fontSize: 16,
+        fontSize: rf(15),
         fontWeight: '700',
         color: '#111',
     },
 
     memberDetails: {
         marginTop: 4,
-        fontSize: 13,
+        fontSize: rf(12),
         color: '#666',
     },
     actions: {
         flexDirection: 'row',
-        gap: 12,
+        marginLeft: 10,
     },
 
     profileButton: {
-        width: 58,
-        height: 58,
-        borderRadius: 18,
+        width: wp(13),
+        height: wp(13),
+        borderRadius: wp(3.5),
         backgroundColor: '#4CAF50',
         justifyContent: 'center',
         alignItems: 'center',
     },
 
     settingsButton: {
-        width: 58,
-        height: 58,
-        borderRadius: 18,
+        width: wp(13),
+        height: wp(13),
+        borderRadius: wp(3.5),
+        marginRight: 10,
         backgroundColor: '#6C4EFF',
         justifyContent: 'center',
         alignItems: 'center',

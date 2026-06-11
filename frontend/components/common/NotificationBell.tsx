@@ -1,3 +1,5 @@
+import { wp, hp } from '../../utils/responsive';
+import { rf } from '../../utils/fonts';
 import React, {
     useEffect,
     useRef,
@@ -16,8 +18,8 @@ import {
 } from '@expo/vector-icons';
 
 import { useRouter } from 'expo-router';
-
-import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import api from '../../services/api';
 
 interface Props {
     color?: string;
@@ -26,50 +28,67 @@ interface Props {
 
 export default function NotificationBell({
     color = '#fff',
-    size = 30,
+    size = rf(28),
 }: Props) {
 
     const router = useRouter();
+
     const [animationStarted, setAnimationStarted] =
         useState(false);
-
-    const shakeAnim =
-        useRef(new Animated.Value(0))
-            .current;
-    const animationLoop =
-        useRef<Animated.CompositeAnimation | null>(null);
 
     const [hasUnread, setHasUnread] =
         useState(false);
 
+    const shakeAnim =
+        useRef(new Animated.Value(0)).current;
+
+    const animationLoop =
+        useRef<Animated.CompositeAnimation | null>(null);
+
+    const mountedRef = useRef(true);
+
     useEffect(() => {
+
+        mountedRef.current = true;
 
         loadNotifications();
 
         const interval = setInterval(() => {
-
             loadNotifications();
-
-        }, 10000);
+        }, 60000);
 
         return () => {
+
+            mountedRef.current = false;
 
             clearInterval(interval);
 
             animationLoop.current?.stop();
 
         };
-    }, []);
-    const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
-    const loadNotifications = async () => {
+    }, []);
+
+    async function loadNotifications() {
 
         try {
 
-            const response =
-                await axios.get(
-                    `${BACKEND_URL}/api/notifications/my`
+            const token =
+                await AsyncStorage.getItem(
+                    'session_token'
                 );
+
+            if (!token) {
+
+                setHasUnread(false);
+
+                return;
+            }
+
+            const response =
+                await api.get('/notifications/my');
+
+            if (!mountedRef.current) return;
 
             const unread =
                 response.data.filter(
@@ -91,16 +110,30 @@ export default function NotificationBell({
 
                 setHasUnread(false);
 
+                animationLoop.current?.stop();
+
+                shakeAnim.setValue(0);
+
                 setAnimationStarted(false);
             }
 
-        } catch (error) {
+        } catch (error: any) {
 
-            console.error(error);
+            if (error?.response?.status === 401) {
+
+                setHasUnread(false);
+
+                return;
+            }
+
+            console.error(
+                'Notification error:',
+                error
+            );
         }
-    };
+    }
 
-    const startBellAnimation = () => {
+    function startBellAnimation() {
 
         animationLoop.current = Animated.loop(
 
@@ -137,13 +170,14 @@ export default function NotificationBell({
         );
 
         animationLoop.current.start();
-    };
+    }
 
     const rotate = shakeAnim.interpolate({
 
         inputRange: [-1, 1],
 
         outputRange: ['-12deg', '12deg'],
+
     });
 
     return (
@@ -151,25 +185,16 @@ export default function NotificationBell({
         <TouchableOpacity
             activeOpacity={0.8}
             style={styles.container}
-            onPress={async () => {
-
-                try {
-
-                    await axios.put(
-                        `${BACKEND_URL}/api/notifications/read-all`
-                    );
-
-                } catch (error) {
-
-                    console.error(error);
-                }
+            onPress={() => {
 
                 setHasUnread(false);
+
                 animationLoop.current?.stop();
 
                 setAnimationStarted(false);
 
                 router.push('/notifications');
+
             }}
         >
 
@@ -181,19 +206,18 @@ export default function NotificationBell({
 
                 <Ionicons
                     name="notifications"
-                    size={size}
+                    size={size || rf(28)}
                     color={color}
                 />
 
             </Animated.View>
 
             {hasUnread && (
-
                 <View style={styles.dot} />
-
             )}
 
         </TouchableOpacity>
+
     );
 }
 
@@ -202,18 +226,21 @@ const styles = StyleSheet.create({
     container: {
         justifyContent: 'center',
         alignItems: 'center',
+
+        minWidth: wp('10%'),
+        minHeight: wp('10%'),
     },
 
     dot: {
         position: 'absolute',
 
-        top: 2,
-        right: 1,
+        top: hp('0.3%'),
+        right: wp('0.3%'),
 
-        width: 12,
-        height: 12,
+        width: wp('3.2%'),
+        height: wp('3.2%'),
 
-        borderRadius: 20,
+        borderRadius: wp('5%'),
 
         backgroundColor: '#FF3B30',
 

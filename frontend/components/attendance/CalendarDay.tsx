@@ -1,3 +1,5 @@
+import { wp, hp } from '../../utils/responsive';
+import { rf } from '../../utils/fonts';
 import React from 'react';
 import {
     View,
@@ -8,29 +10,44 @@ import {
 
 interface Props {
     day: number;
+    size: number;
     selected?: boolean;
-    marked?: boolean;
-    absent?: boolean;
+
+    presentCount?: number;
+    absentCount?: number;
+
     onPress?: () => void;
 }
-
 const CalendarDay = ({
     day,
+    size,
     selected,
-    marked,
-    absent,
+    presentCount = 0,
+    absentCount = 0,
     onPress,
 }: Props) => {
 
     let backgroundColor = '#F4F3F8';
     let textColor = '#16162E';
 
-    if (marked) {
+    const mixed =
+        presentCount > 0 &&
+        absentCount > 0;
+
+    const onlyPresent =
+        presentCount > 0 &&
+        absentCount === 0;
+
+    const onlyAbsent =
+        absentCount > 0 &&
+        presentCount === 0;
+
+    if (onlyPresent) {
         backgroundColor = '#37C978';
         textColor = '#fff';
     }
 
-    if (absent) {
+    if (onlyAbsent) {
         backgroundColor = '#FF5B5B';
         textColor = '#fff';
     }
@@ -45,18 +62,55 @@ const CalendarDay = ({
             activeOpacity={0.7}
             style={[
                 styles.dayContainer,
-                { backgroundColor },
-            ]}
+                {
+                    width: size,
+                    height: size,
+                    borderRadius: size / 2,
+                    backgroundColor,
+                }]}
             onPress={onPress}
         >
-            <Text
-                style={[
-                    styles.text,
-                    { color: textColor },
-                ]}
-            >
-                {day}
-            </Text>
+            <>
+                {mixed && !selected && (
+                    <>
+                        <View
+                            style={{
+                                position: 'absolute',
+                                left: 0,
+                                top: 0,
+                                bottom: 0,
+                                width: '50%',
+                                backgroundColor: '#37C978',
+                            }}
+                        />
+
+                        <View
+                            style={{
+                                position: 'absolute',
+                                right: 0,
+                                top: 0,
+                                bottom: 0,
+                                width: '50%',
+                                backgroundColor: '#FF5B5B',
+                            }}
+                        />
+                    </>
+                )}
+
+                <Text
+                    style={[
+                        styles.text,
+                        {
+                            color:
+                                mixed || selected
+                                    ? '#fff'
+                                    : textColor,
+                        },
+                    ]}
+                >
+                    {day}
+                </Text>
+            </>
         </TouchableOpacity>
     );
 };
@@ -64,17 +118,23 @@ const CalendarDay = ({
 export default CalendarDay;
 
 const styles = StyleSheet.create({
+
     dayContainer: {
-        width: 44,
-        height: 44,
-        marginBottom: 12,
-        borderRadius: 18,
         justifyContent: 'center',
         alignItems: 'center',
+        marginBottom: 12,
+        overflow: 'hidden',
+    },
+
+    calendarGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: 'space-between',
     },
 
     text: {
-        fontSize: 16,
+        fontSize: rf(15),
         fontWeight: '700',
     },
+
 });

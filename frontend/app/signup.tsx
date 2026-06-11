@@ -1,3 +1,5 @@
+import { wp, hp } from '../utils/responsive';
+import { rf } from '../utils/fonts';
 import React, { useState } from 'react';
 import {
   View,
@@ -102,7 +104,7 @@ export default function SignupScreen() {
 
         Alert.alert(
           'Signup Failed',
-          JSON.stringify(error.detail || error)
+          error.detail || 'Unable to create account'
         );
       }
     } catch (error) {
@@ -271,89 +273,126 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#1a1a2e',
   },
+
   scrollContent: {
     flexGrow: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 20,
-    paddingVertical: 40,
+    padding: wp(5),
+    paddingVertical: hp(5),
   },
+
   logo: {
-    width: 120,
-    height: 120,
-    marginBottom: 16,
+    width: wp(30),
+    height: wp(30),
+    maxWidth: 140,
+    maxHeight: 140,
+    marginBottom: hp(2),
   },
+
   title: {
-    fontSize: 28,
+    fontSize: rf(26),
     fontWeight: 'bold',
     color: '#F8D57E',
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: hp(1),
   },
+
   subtitle: {
-    fontSize: 16,
+    fontSize: rf(14),
     color: '#F8D57E',
     textAlign: 'center',
-    marginBottom: 24,
+    marginBottom: hp(3),
   },
+
   signupCard: {
     backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 24,
+    borderRadius: wp(4),
+    padding: wp(6),
+
     width: '100%',
-    maxWidth: 400,
+    maxWidth: 450,
+
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
   },
+
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+
     borderWidth: 1,
     borderColor: '#ddd',
-    borderRadius: 12,
-    marginBottom: 16,
-    paddingHorizontal: 12,
+
+    borderRadius: wp(3),
+
+    marginBottom: hp(2),
+
+    paddingHorizontal: wp(3),
+
     backgroundColor: '#f9f9f9',
   },
+
   inputIcon: {
-    marginRight: 8,
+    marginRight: wp(2),
   },
+
   input: {
     flex: 1,
-    paddingVertical: 14,
-    fontSize: 16,
+
+    paddingVertical: hp(1.8),
+
+    fontSize: rf(14),
+
     color: '#1a1a2e',
   },
+
   eyeIcon: {
-    padding: 4,
+    padding: wp(1),
   },
+
   signupButton: {
     backgroundColor: '#5B4FCE',
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    borderRadius: 12,
+
+    paddingVertical: hp(1.8),
+    paddingHorizontal: wp(6),
+
+    borderRadius: wp(3),
+
     alignItems: 'center',
-    marginTop: 8,
+
+    marginTop: hp(1),
   },
+
   signupButtonText: {
     color: '#ffffff',
-    fontSize: 16,
+    fontSize: rf(15),
     fontWeight: '600',
   },
+
   loginContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 20,
+
+    marginTop: hp(2.5),
+
+    flexWrap: 'wrap',
   },
+
   loginText: {
-    fontSize: 14,
+    fontSize: rf(13),
     color: '#666',
   },
+
   loginLink: {
-    fontSize: 14,
+    fontSize: rf(13),
     color: '#5B4FCE',
     fontWeight: '600',
   },

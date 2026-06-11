@@ -1,5 +1,14 @@
+import { wp, hp } from '../utils/responsive';
+import { rf } from '../utils/fonts';
 import { useEffect } from 'react';
-import { View, Image, StyleSheet, ActivityIndicator } from 'react-native';
+import {
+  Image,
+  StyleSheet,
+  ActivityIndicator,
+  Text,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -18,14 +27,36 @@ export default function SplashScreen() {
   }, [loading, isAuthenticated, user, router]);
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <Image
         source={require('../assets/logo/vajihi-scout-logo.png')}
         style={styles.logo}
         resizeMode="contain"
       />
-      <ActivityIndicator size="large" color="#5B4FCE" style={styles.loader} />
-    </View>
+      <ActivityIndicator
+        size="large"
+        color="#5B4FCE"
+        style={styles.loader}
+      />
+
+      <View style={styles.footer}>
+        <Text style={styles.footerText}>
+          Developed by
+        </Text>
+
+        <Text style={styles.footerName}>
+          Mustafa Balasinorwala
+        </Text>
+
+        <Text style={styles.footerCopyright}>
+          © 2026 Vajihi Scout Mumbra
+        </Text>
+
+        <Text style={styles.footerCopyright}>
+          All Rights Reserved
+        </Text>
+      </View>
+    </SafeAreaView>
   );
 }
 
@@ -37,10 +68,33 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   logo: {
-    width: 200,
-    height: 200,
+    width: wp(45),
+    height: wp(45),
   },
   loader: {
-    marginTop: 24,
+    marginTop: hp(2),
+  },
+  footer: {
+    position: 'absolute',
+    bottom: hp(4),
+    alignItems: 'center',
+  },
+
+  footerText: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: rf(11),
+  },
+
+  footerName: {
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: rf(12),
+    fontWeight: '600',
+    marginTop: 2,
+  },
+
+  footerCopyright: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: rf(10),
+    marginTop: 2,
   },
 });

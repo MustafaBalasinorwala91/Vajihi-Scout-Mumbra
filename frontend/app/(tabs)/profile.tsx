@@ -17,6 +17,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
 import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 const InfoField = ({
   icon,
@@ -87,7 +88,8 @@ const InfoField = ({
           }}
         />
       ) : (
-        <Text style={styles.infoValue}>{value || 'Not provided'}</Text>
+        <Text style={styles.infoValue}
+          numberOfLines={1}>{value || 'Not provided'}</Text>
       )}
     </View>
   </View>
@@ -123,26 +125,29 @@ export default function ProfileScreen() {
     joining_year: user?.joining_year || '',
   });
   useEffect(() => {
+
+    if (!user) return;
+
     loadAttendanceStats();
-    if (user) {
-      setFormData({
-        its_no: user?.its_no || '',
-        name: user?.name || '',
-        phone: user?.phone || '',
-        email_id: user?.email_id || '',
-        picture: user?.picture || '',
-        age: user?.age || '',
-        birth_date: user?.birth_date || '',
-        parent_contact: user?.parent_contact || '',
-        instrument: user?.instrument || '',
-        joining_year: user?.joining_year || '',
-      });
-    }
+
+    setFormData({
+      its_no: user?.its_no || '',
+      name: user?.name || '',
+      phone: user?.phone || '',
+      email_id: user?.email_id || '',
+      picture: user?.picture || '',
+      age: user?.age || '',
+      birth_date: user?.birth_date || '',
+      parent_contact: user?.parent_contact || '',
+      instrument: user?.instrument || '',
+      joining_year: user?.joining_year || '',
+    });
+
   }, [user]);
   const profileImage =
     formData.picture || user?.picture || null;
   const bio =
-    `${user?.role?.toUpperCase() || 'MEMBER'} • ${user?.instrument || 'No Instrument Assigned'
+    `${user?.instrument || 'No Instrument Assigned'
     }`;
 
   const handlePickImage = async () => {
@@ -227,14 +232,23 @@ export default function ProfileScreen() {
     try {
       const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
-      const response = await fetch(`${BACKEND_URL}/api/profile`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify(formData),
-      });
+      const token =
+        await AsyncStorage.getItem(
+          'session_token'
+        );
+      if (!token) return;
+
+      const response = await fetch(
+        `${BACKEND_URL}/api/profile`,
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(formData),
+        }
+      );
 
       if (response.ok) {
         await checkAuth();
@@ -273,10 +287,10 @@ export default function ProfileScreen() {
     ]);
   };
   const onRefresh = async () => {
-
     setRefreshing(true);
 
     await checkAuth();
+    await loadAttendanceStats();
 
     setRefreshing(false);
   };
@@ -289,6 +303,11 @@ export default function ProfileScreen() {
 
       const token =
         await AsyncStorage.getItem('session_token');
+
+      if (!token) {
+        return;
+      }
+      if (!user) return;
 
       const headers = {
         Authorization: `Bearer ${token}`,
@@ -425,7 +444,8 @@ export default function ProfileScreen() {
         style={styles.header}
       >
         <View style={styles.headerTop}>
-          <Text style={styles.headerTitle}>Profile</Text>
+          <Text style={styles.headerTitle}
+            allowFontScaling={false}>Profile</Text>
 
           <TouchableOpacity
             style={styles.settingsButton}
@@ -459,11 +479,16 @@ export default function ProfileScreen() {
           </TouchableOpacity>
 
           <View style={styles.userInfoWrap}>
-            <Text style={styles.userName}>{user?.name || 'Member'}</Text>
+            <Text style={styles.userName}
+              numberOfLines={2}
+              allowFontScaling={false}
+            >{user?.name || 'Member'}</Text>
 
-            <Text style={styles.memberBadgeText}>
-              {user?.role?.toUpperCase() || 'MEMBER'}
-            </Text>
+            <View style={styles.memberBadge}>
+              <Text style={styles.memberBadgeText}>
+                {user?.role?.toUpperCase() || 'MEMBER'}
+              </Text>
+            </View>
             <Text style={styles.bioText}>
               {bio}
             </Text>
@@ -635,7 +660,8 @@ export default function ProfileScreen() {
 
           <View style={styles.attendanceRow}>
             <View style={styles.attendanceCirclePurple}>
-              <Text style={styles.attendancePercent}>
+              <Text style={styles.attendancePercent}
+                allowFontScaling={false}>
                 {practiceStats?.percentage || 0}%
               </Text>
             </View>
@@ -653,7 +679,8 @@ export default function ProfileScreen() {
 
           <View style={styles.attendanceRow}>
             <View style={styles.attendanceCircleOrange}>
-              <Text style={styles.attendancePercent}>
+              <Text style={styles.attendancePercent}
+                allowFontScaling={false}>
                 {khidmatStats?.percentage || 0}%
               </Text>
             </View>
@@ -670,7 +697,8 @@ export default function ProfileScreen() {
           </View>
           <View style={styles.attendanceRow}>
             <View style={styles.attendanceCirclePurple}>
-              <Text style={styles.attendancePercent}>
+              <Text style={styles.attendancePercent}
+                allowFontScaling={false}>
                 {dutiesStats?.percentage || 0}%
               </Text>
             </View>
@@ -862,8 +890,11 @@ const styles = StyleSheet.create({
 
   userName: {
     color: '#fff',
-    fontSize: 30,
-    fontWeight: '700',
+    fontSize: 24,
+    fontWeight: '800',
+    textAlign: 'center',
+    lineHeight: 30,
+    paddingHorizontal: 20,
   },
 
   memberBadge: {
@@ -895,7 +926,7 @@ const styles = StyleSheet.create({
   },
 
   statCard: {
-    width: 140,
+    width: 130,
     backgroundColor: 'rgba(255,255,255,0.12)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.15)',
@@ -1034,7 +1065,7 @@ const styles = StyleSheet.create({
 
   attendancePercent: {
     fontWeight: '700',
-    fontSize: 18,
+    fontSize: 16,
     color: '#1a1a2e',
   },
 

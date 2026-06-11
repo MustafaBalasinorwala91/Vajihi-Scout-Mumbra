@@ -11,11 +11,13 @@ import {
     StatusBar,
     RefreshControl,
 } from 'react-native';
-
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import axios from 'axios';
+import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 export default function AttendanceHistoryScreen() {
 
     const [history, setHistory] = useState<any[]>([]);
@@ -23,8 +25,18 @@ export default function AttendanceHistoryScreen() {
         useState(false);
     const router = useRouter();
     const { user } = useAuth();
+    const formatDate = (date: string) =>
+        new Date(date).toLocaleDateString(
+            'en-IN',
+            {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+            }
+        );
 
     const canManageAttendance =
+        user?.role === 'admin' ||
         user?.permissions?.attendance;
     const { type } = useLocalSearchParams();
 
@@ -44,11 +56,8 @@ export default function AttendanceHistoryScreen() {
         try {
 
             const endpoint =
-                canManageAttendance
-                    ? `${BACKEND_URL}/api/attendance/history/${type}`
-                    : `${BACKEND_URL}/api/attendance/my-history/${type}`;
-
-            const response = await axios.get(
+                `${BACKEND_URL}/api/attendance/history/${type}`;
+            const response = await api.get(
                 endpoint,
                 {
                     withCredentials: true,
@@ -63,6 +72,54 @@ export default function AttendanceHistoryScreen() {
 
         }
     };
+    const handleExport = async () => {
+        try {
+
+            const token =
+                await AsyncStorage.getItem(
+                    'session_token'
+                );
+
+            if (!token) {
+                alert('Please login again');
+                return;
+            }
+
+            const fileUri =
+                `${FileSystem.documentDirectory}attendance_${type}.xlsx`;
+
+            const downloadResumable =
+                FileSystem.createDownloadResumable(
+                    `${BACKEND_URL}/api/attendance/export?attendance_type=${type}`,
+                    fileUri,
+                    {
+                        headers: {
+                            Authorization: `Bearer ${token}`,
+                        },
+                    }
+                );
+
+            const result =
+                await downloadResumable.downloadAsync();
+
+            if (result?.uri) {
+                await Sharing.shareAsync(
+                    result.uri
+                );
+            }
+
+        } catch (error) {
+
+            console.log(
+                'Export error:',
+                error
+            );
+
+            alert(
+                'Failed to export attendance'
+            );
+        }
+    };
 
     const onRefresh = async () => {
 
@@ -74,8 +131,10 @@ export default function AttendanceHistoryScreen() {
     };
 
     return (
-
-        <View style={styles.container}>
+        <SafeAreaView
+            style={styles.container}
+            edges={['top']}
+        >
 
             <StatusBar
                 barStyle="light-content"
@@ -101,23 +160,37 @@ export default function AttendanceHistoryScreen() {
                     </TouchableOpacity>
 
                     <View style={styles.headerTextWrapper}>
-
-                        <Text style={styles.headerTitle}>
+                        <Text
+                            style={styles.headerTitle}
+                            allowFontScaling={false}
+                        >
                             Attendance History
                         </Text>
 
-                        <Text style={styles.headerSubtitle}>
-
+                        <Text
+                            style={styles.headerSubtitle}
+                            allowFontScaling={false}
+                        >
                             {canManageAttendance
                                 ? 'View all saved attendance records'
                                 : 'View your attendance records'}
-
                         </Text>
-
                     </View>
 
-                </View>
+                    {canManageAttendance && (
+                        <TouchableOpacity
+                            style={styles.exportButton}
+                            onPress={handleExport}
+                        >
+                            <Ionicons
+                                name="download-outline"
+                                size={22}
+                                color="#fff"
+                            />
+                        </TouchableOpacity>
+                    )}
 
+                </View>
             </LinearGradient>
 
             <FlatList
@@ -130,10 +203,30 @@ export default function AttendanceHistoryScreen() {
                     />
                 }
                 data={history}
+                ListEmptyComponent={
+                    <View style={styles.emptyContainer}>
+                        <Ionicons
+                            name="calendar-outline"
+                            size={70}
+                            color="#C7C7C7"
+                        />
 
-                keyExtractor={(item) => item.date}
+                        <Text style={styles.emptyTitle}>
+                            No Attendance History
+                        </Text>
+
+                        <Text style={styles.emptySubtitle}>
+                            No attendance records found.
+                        </Text>
+                    </View>
+                }
+
+                keyExtractor={(item) =>
+                    `${item.attendance_type}-${item.date}-${item.event_name || "default"}`
+                }
 
                 contentContainerStyle={{
+                    flexGrow: 1,
                     paddingTop: 22,
                     paddingBottom: 40,
                 }}
@@ -151,6 +244,7 @@ export default function AttendanceHistoryScreen() {
                                 params: {
                                     type: item.attendance_type,
                                     date: item.date,
+                                    event_name: item.event_name || '',
                                 },
                             })
                         }
@@ -158,18 +252,39 @@ export default function AttendanceHistoryScreen() {
 
                         <View style={styles.topRow}>
 
-                            <Text style={styles.date}>
-                                {item.date}
-                            </Text>
-
-                            <View style={styles.typeBadge}>
-
-                                <Text style={styles.typeText}>
-                                    {item.attendance_type}
+                            <View>
+                                <Text style={styles.date}>
+                                    {formatDate(item.date)}
                                 </Text>
 
+                                {item.event_name ? (
+                                    <Text
+                                        style={{
+                                            marginTop: 4,
+                                            color: '#666',
+                                            fontSize: 14,
+                                        }}
+                                    >
+                                        {item.event_name}
+                                    </Text>
+                                ) : null}
                             </View>
 
+                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                <View style={styles.typeBadge}>
+                                    <Text style={styles.typeText}
+                                        allowFontScaling={false}>
+                                        {item.attendance_type}
+                                    </Text>
+                                </View>
+
+                                <Ionicons
+                                    name="chevron-forward"
+                                    size={22}
+                                    color="#B0B0B0"
+                                    style={{ marginLeft: 8 }}
+                                />
+                            </View>
                         </View>
 
                         <View style={styles.statsRow}>
@@ -185,7 +300,8 @@ export default function AttendanceHistoryScreen() {
                                     ]}
                                 />
 
-                                <Text style={styles.present}>
+                                <Text style={styles.present}
+                                    allowFontScaling={false}>
                                     Present: {item.present}
                                 </Text>
 
@@ -202,7 +318,8 @@ export default function AttendanceHistoryScreen() {
                                     ]}
                                 />
 
-                                <Text style={styles.absent}>
+                                <Text style={styles.absent}
+                                    allowFontScaling={false}>
                                     Absent: {item.absent}
                                 </Text>
 
@@ -211,10 +328,11 @@ export default function AttendanceHistoryScreen() {
                         </View>
 
                     </TouchableOpacity>
-                )}
+                )
+                }
             />
 
-        </View>
+        </SafeAreaView >
     );
 }
 
@@ -245,7 +363,6 @@ const styles = StyleSheet.create({
     headerTop: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 16,
     },
 
     headerTextWrapper: {
@@ -333,6 +450,23 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
     },
+    emptyContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingTop: 80,
+    },
+
+    emptyTitle: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: '#16162E',
+        marginTop: 12,
+    },
+
+    emptySubtitle: {
+        color: '#777',
+        marginTop: 6,
+    },
 
     dot: {
         width: 12,
@@ -351,5 +485,18 @@ const styles = StyleSheet.create({
         color: '#FF5B5B',
         fontSize: 17,
         fontWeight: '700',
+    },
+    exportButton: {
+        width: 44,
+        height: 44,
+
+        borderRadius: 14,
+
+        backgroundColor: 'rgba(255,255,255,0.18)',
+
+        justifyContent: 'center',
+        alignItems: 'center',
+
+        marginLeft: 12,
     },
 });

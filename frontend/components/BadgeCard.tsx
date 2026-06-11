@@ -1,3 +1,5 @@
+import { wp, hp } from '../utils/responsive';
+import { rf } from '../utils/fonts';
 import React from 'react';
 import {
     View,
@@ -26,7 +28,7 @@ export default function BadgeCard({
             return (
                 <Ionicons
                     name={icon}
-                    size={28}
+                    size={rf(24)}
                     color={iconColor}
                 />
             );
@@ -36,7 +38,7 @@ export default function BadgeCard({
             return (
                 <MaterialCommunityIcons
                     name={icon}
-                    size={30}
+                    size={rf(26)}
                     color={iconColor}
                 />
             );
@@ -45,7 +47,7 @@ export default function BadgeCard({
         return (
             <FontAwesome5
                 name={icon}
-                size={24}
+                size={rf(20)}
                 color={iconColor}
             />
         );
@@ -72,7 +74,7 @@ export default function BadgeCard({
                     <View style={styles.lockOverlay}>
                         <Ionicons
                             name="lock-closed"
-                            size={14}
+                            size={rf(12)}
                             color="#fff"
                         />
                     </View>
@@ -94,21 +96,26 @@ export default function BadgeCard({
 
 const styles = StyleSheet.create({
     container: {
-        width: 105,
+        width: wp('27%'),
+
         backgroundColor: '#fff',
-        borderRadius: 24,
-        paddingVertical: 12,
-        paddingHorizontal: 10,
+
+        borderRadius: wp('6%'),
+
+        paddingVertical: hp('1.5%'),
+        paddingHorizontal: wp('2.5%'),
+
         alignItems: 'center',
-        marginRight: 14,
+
+        marginRight: wp('3.5%'),
 
         shadowColor: '#000',
         shadowOffset: {
             width: 0,
-            height: 4,
+            height: hp('0.5%'),
         },
         shadowOpacity: 0.08,
-        shadowRadius: 8,
+        shadowRadius: wp('2%'),
         elevation: 5,
     },
 
@@ -117,25 +124,31 @@ const styles = StyleSheet.create({
     },
 
     iconWrapper: {
-        width: 60,
-        height: 70,
-        borderRadius: 25,
+        width: wp('15%'),
+        height: hp('8%'),
+
+        borderRadius: wp('6%'),
+
         justifyContent: 'center',
         alignItems: 'center',
-        marginBottom: 20,
+
+        marginBottom: hp('2%'),
+
         position: 'relative',
     },
 
     lockOverlay: {
         position: 'absolute',
-        bottom: -2,
-        right: -2,
+
+        bottom: -hp('0.2%'),
+        right: -wp('0.5%'),
 
         backgroundColor: '#666',
 
-        width: 24,
-        height: 24,
-        borderRadius: 12,
+        width: wp('6%'),
+        height: wp('6%'),
+
+        borderRadius: wp('3%'),
 
         justifyContent: 'center',
         alignItems: 'center',
@@ -146,9 +159,15 @@ const styles = StyleSheet.create({
 
     title: {
         textAlign: 'center',
-        fontSize: 12,
+
+        fontSize: rf(11),
+
         fontWeight: '700',
+
         color: '#1a1a2e',
-        lineHeight: 18,
+
+        lineHeight: rf(16),
+
+        minHeight: hp('4%'),
     },
 });

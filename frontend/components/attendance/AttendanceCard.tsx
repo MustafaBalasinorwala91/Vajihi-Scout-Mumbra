@@ -1,3 +1,5 @@
+import { wp, hp } from '../../utils/responsive';
+import { rf } from '../../utils/fonts';
 import React from 'react';
 import {
     View,
@@ -30,7 +32,7 @@ const AttendanceCard = ({
             >
                 <Ionicons
                     name={icon as any}
-                    size={22}
+                    size={rf(22)}
                     color="#fff"
                 />
             </View>
@@ -51,46 +53,50 @@ export default AttendanceCard;
 const styles = StyleSheet.create({
 
     card: {
-        width: 150,
+        width: wp('38%'),
 
         backgroundColor: '#fff',
 
-        borderRadius: 24,
+        borderRadius: wp('6%'),
 
-        paddingVertical: 20,
-        paddingHorizontal: 16,
+        paddingVertical: hp('2.2%'),
+        paddingHorizontal: wp('4%'),
 
-        marginRight: 14,
+        marginRight: wp('3.5%'),
 
         elevation: 5,
 
         shadowColor: '#000',
+        shadowOffset: {
+            width: 0,
+            height: hp('0.5%'),
+        },
         shadowOpacity: 0.08,
-        shadowRadius: 12,
+        shadowRadius: wp('3%'),
     },
 
     iconBox: {
-        width: 58,
-        height: 58,
+        width: wp('15%'),
+        height: wp('15%'),
 
-        borderRadius: 29,
+        borderRadius: wp('7.5%'),
 
         justifyContent: 'center',
         alignItems: 'center',
 
-        marginBottom: 16,
+        marginBottom: hp('2%'),
     },
 
     value: {
-        fontSize: 28,
+        fontSize: rf(28),
         fontWeight: '800',
         color: '#16162E',
     },
 
     label: {
-        marginTop: 8,
+        marginTop: hp('1%'),
 
-        fontSize: 16,
+        fontSize: rf(15),
         fontWeight: '500',
 
         color: '#666',

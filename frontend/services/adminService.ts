@@ -7,7 +7,7 @@ const getHeaders = async () => {
 
     return {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
+        Authorization: token ? `Bearer ${token}` : '',
     };
 };
 
@@ -35,6 +35,10 @@ export const updateUserPermissions = async (
                 }),
             }
         );
+
+        if (!response.ok) {
+            throw new Error('Request failed');
+        }
 
         return await response.json();
     } catch (error) {

@@ -11,10 +11,11 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface User {
   user_id: string;
-  email: string;
+  email_id?: string;
   name: string;
   role: string;
 }
@@ -37,10 +38,14 @@ export default function MarkAttendanceScreen() {
   const fetchUsers = async () => {
     try {
       const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
-      const response = await fetch(`${BACKEND_URL}/api/users`, {
-        credentials: 'include',
-      });
+      const token = await AsyncStorage.getItem('session_token');
+      if (!token) return;
 
+      const response = await fetch(`${BACKEND_URL}/api/users`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
       if (response.ok) {
         const data = await response.json();
         // Filter out admin users
@@ -85,17 +90,19 @@ export default function MarkAttendanceScreen() {
     setSaving(true);
     try {
       const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
-      
+      const token = await AsyncStorage.getItem('session_token');
+      if (!token) return;
+
       // Save attendance for each user
       const promises = Object.entries(attendanceMap).map(([userId, status]) => {
         if (!status) return Promise.resolve();
-        
+
         return fetch(`${BACKEND_URL}/api/attendance`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
           },
-          credentials: 'include',
           body: JSON.stringify({
             user_id: userId,
             attendance_type: activeTab,

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   View,
   Text,
@@ -42,8 +43,13 @@ export default function ManageInventoryScreen() {
   const fetchInventory = async () => {
     try {
       const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
+      const token = await AsyncStorage.getItem('session_token');
+      if (!token) return;
+
       const response = await fetch(`${BACKEND_URL}/api/inventory`, {
-        credentials: 'include',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       });
 
       if (response.ok) {
@@ -66,12 +72,14 @@ export default function ManageInventoryScreen() {
     setSaving(true);
     try {
       const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
+      const token = await AsyncStorage.getItem('session_token');
+      if (!token) return;
       const response = await fetch(`${BACKEND_URL}/api/inventory`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
         },
-        credentials: 'include',
         body: JSON.stringify({
           name: formData.name,
           quantity: parseInt(formData.quantity),
@@ -104,12 +112,14 @@ export default function ManageInventoryScreen() {
     setSaving(true);
     try {
       const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
+      const token = await AsyncStorage.getItem('session_token');
+      if (!token) return;
       const response = await fetch(`${BACKEND_URL}/api/inventory/${selectedItem.item_id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
         },
-        credentials: 'include',
         body: JSON.stringify({
           name: formData.name,
           quantity: parseInt(formData.quantity),
@@ -142,10 +152,15 @@ export default function ManageInventoryScreen() {
         onPress: async () => {
           try {
             const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
-            const response = await fetch(`${BACKEND_URL}/api/inventory/${item.item_id}`, {
-              method: 'DELETE',
-              credentials: 'include',
-            });
+            const token = await AsyncStorage.getItem('session_token');
+            if (!token) return;
+            const response = await fetch(`${BACKEND_URL}/api/inventory/${item.item_id}`,
+              {
+                method: 'DELETE',
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                },
+              });
 
             if (response.ok) {
               Alert.alert('Success', 'Item deleted successfully');

@@ -1,3 +1,5 @@
+import { wp, hp } from '../utils/responsive';
+import { rf } from '../utils/fonts';
 import React, { useState } from 'react';
 import {
     View,
@@ -69,7 +71,7 @@ export default function SettingsScreen() {
                     />
                 </View>
 
-                <View>
+                <View style={{ flex: 1 }}>
                     <Text
                         style={[
                             styles.cardTitle,
@@ -216,7 +218,7 @@ export default function SettingsScreen() {
                         onPress={() =>
                             Alert.alert(
                                 'Contact Us',
-                                'Email: support@vajihiscout.com\nPhone: +91 9876543210'
+                                'Email: vajihiscoutmumbra@gmail.com\nPhone: +91 9930585875'
                             )
                         }
                     />
@@ -283,58 +285,71 @@ const styles = StyleSheet.create({
     },
 
     header: {
-        paddingTop: 70,
-        paddingBottom: 35,
-        paddingHorizontal: 20,
+        paddingTop: hp(8),
+        paddingBottom: hp(4),
+        paddingHorizontal: wp(5),
+
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        borderBottomLeftRadius: 30,
-        borderBottomRightRadius: 30,
+
+        borderBottomLeftRadius: wp(8),
+        borderBottomRightRadius: wp(8),
     },
 
     backButton: {
-        width: 42,
-        height: 42,
-        borderRadius: 21,
+        width: wp(11),
+        height: wp(11),
+
+        borderRadius: wp(5.5),
+
         backgroundColor: 'rgba(255,255,255,0.18)',
+
         justifyContent: 'center',
         alignItems: 'center',
     },
 
     headerTitle: {
-        fontSize: 30,
+        fontSize: rf(26),
         fontWeight: '800',
         color: '#fff',
     },
 
     content: {
-        padding: 18,
+        padding: wp(5),
     },
 
     sectionTitle: {
-        fontSize: 20,
+        fontSize: rf(18),
         fontWeight: '700',
         color: '#1a1a2e',
-        marginBottom: 14,
-        marginTop: 10,
+
+        marginBottom: hp(1.5),
+        marginTop: hp(1),
     },
 
     card: {
         backgroundColor: '#fff',
-        borderRadius: 28,
+
+        borderRadius: wp(7),
+
         borderWidth: 1,
         borderColor: '#F3F0FF',
-        padding: 20,
-        marginBottom: 16,
+
+        padding: wp(5),
+
+        marginBottom: hp(2),
+
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
+
         shadowColor: '#000',
         shadowOffset: {
             width: 0,
             height: 3,
         },
+
         shadowOpacity: 0.08,
         shadowRadius: 8,
         elevation: 4,
@@ -347,24 +362,32 @@ const styles = StyleSheet.create({
     },
 
     iconContainer: {
-        width: 52,
-        height: 52,
-        borderRadius: 16,
+        width: wp(13),
+        height: wp(13),
+
+        borderRadius: wp(4),
+
         backgroundColor: '#f1edff',
+
         justifyContent: 'center',
         alignItems: 'center',
-        marginRight: 16,
+
+        marginRight: wp(4),
     },
 
     cardTitle: {
-        fontSize: 17,
+        fontSize: rf(15),
         fontWeight: '700',
         color: '#1a1a2e',
     },
 
     cardSubtitle: {
         color: '#777',
-        marginTop: 5,
-        fontSize: 13,
+
+        marginTop: hp(0.5),
+
+        fontSize: rf(12),
+
+        flexShrink: 1,
     },
 });

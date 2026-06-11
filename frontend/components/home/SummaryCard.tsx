@@ -1,3 +1,5 @@
+import { wp, hp } from '../../utils/responsive';
+import { rf } from '../../utils/fonts';
 import React from 'react';
 import {
     View,
@@ -24,7 +26,7 @@ export default function SummaryCard({
             >
                 <Ionicons
                     name={icon}
-                    size={24}
+                    size={rf(20)}
                     color="#fff"
                 />
             </View>
@@ -46,48 +48,56 @@ export default function SummaryCard({
 
 const styles = StyleSheet.create({
     card: {
-        width: 150,
+        width: wp('38%'),
+
         backgroundColor: '#fff',
-        borderRadius: 28,
-        padding: 22,
-        marginRight: 16,
+
+        borderRadius: wp('7%'),
+
+        padding: wp('5.5%'),
+
+        marginRight: wp('4%'),
 
         shadowColor: '#000',
         shadowOffset: {
             width: 0,
-            height: 6,
+            height: hp('0.8%'),
         },
         shadowOpacity: 0.08,
-        shadowRadius: 10,
+        shadowRadius: wp('2.5%'),
         elevation: 5,
     },
 
     iconContainer: {
-        width: 52,
-        height: 52,
-        borderRadius: 26,
+        width: wp('13%'),
+        height: wp('13%'),
+        borderRadius: wp('6.5%'),
 
         justifyContent: 'center',
         alignItems: 'center',
 
-        marginBottom: 18,
+        marginBottom: hp('2%'),
     },
 
     value: {
-        fontSize: 34,
+        fontSize: rf(28),
         fontWeight: '800',
         color: '#16162E',
     },
 
     title: {
-        fontSize: 16,
+        fontSize: rf(14),
         fontWeight: '700',
         color: '#16162E',
-        marginTop: 10,
+
+        marginTop: hp('1%'),
     },
 
     subtitle: {
         color: '#777',
-        marginTop: 4,
+
+        fontSize: rf(11),
+
+        marginTop: hp('0.5%'),
     },
 });

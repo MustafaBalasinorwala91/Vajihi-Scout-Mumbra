@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   View,
   Text,
@@ -42,8 +43,13 @@ export default function ManageUniformsScreen() {
   const fetchUniforms = async () => {
     try {
       const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
+      const token = await AsyncStorage.getItem('session_token');
+      if (!token) return;
+
       const response = await fetch(`${BACKEND_URL}/api/uniforms`, {
-        credentials: 'include',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       });
 
       if (response.ok) {
@@ -66,12 +72,14 @@ export default function ManageUniformsScreen() {
     setSaving(true);
     try {
       const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
+      const token = await AsyncStorage.getItem('session_token');
+      if (!token) return;
       const response = await fetch(`${BACKEND_URL}/api/uniforms`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
         },
-        credentials: 'include',
         body: JSON.stringify({
           name: formData.name,
           size: formData.size,
@@ -104,12 +112,14 @@ export default function ManageUniformsScreen() {
     setSaving(true);
     try {
       const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
+      const token = await AsyncStorage.getItem('session_token');
+      if (!token) return;
       const response = await fetch(`${BACKEND_URL}/api/uniforms/${selectedUniform.uniform_id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
         },
-        credentials: 'include',
         body: JSON.stringify({
           name: formData.name,
           size: formData.size,
@@ -142,10 +152,18 @@ export default function ManageUniformsScreen() {
         onPress: async () => {
           try {
             const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
-            const response = await fetch(`${BACKEND_URL}/api/uniforms/${uniform.uniform_id}`, {
-              method: 'DELETE',
-              credentials: 'include',
-            });
+            const token = await AsyncStorage.getItem('session_token');
+            if (!token) return;
+
+            const response = await fetch(
+              `${BACKEND_URL}/api/uniforms/${uniform.uniform_id}`,
+              {
+                method: 'DELETE',
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                },
+              }
+            );
 
             if (response.ok) {
               Alert.alert('Success', 'Uniform deleted successfully');

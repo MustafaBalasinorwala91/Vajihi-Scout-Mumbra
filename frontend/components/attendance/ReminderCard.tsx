@@ -1,3 +1,5 @@
+import { wp, hp } from '../../utils/responsive';
+import { rf } from '../../utils/fonts';
 import React from 'react';
 import {
     View,
@@ -15,12 +17,12 @@ const ReminderCard = () => {
                 <View style={styles.iconBox}>
                     <Ionicons
                         name="notifications"
-                        size={26}
+                        size={rf(24)}
                         color="#6C4DFF"
                     />
                 </View>
 
-                <View>
+                <View style={{ flex: 1 }}>
                     <Text style={styles.title}>
                         Reminder
                     </Text>
@@ -39,42 +41,68 @@ const ReminderCard = () => {
 export default ReminderCard;
 
 const styles = StyleSheet.create({
+
     container: {
         backgroundColor: '#fff',
-        borderRadius: 28,
-        padding: 20,
-        marginTop: 24,
+
+        borderRadius: wp('7%'),
+
+        padding: wp('5%'),
+
+        marginTop: hp('3%'),
+
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
+
         elevation: 5,
+
+        shadowColor: '#000',
+        shadowOffset: {
+            width: 0,
+            height: hp('0.5%'),
+        },
+        shadowOpacity: 0.08,
+        shadowRadius: wp('3%'),
     },
 
     left: {
         flexDirection: 'row',
         alignItems: 'center',
+
+        flex: 1,
+
+        marginRight: wp('3%'),
     },
 
     iconBox: {
-        width: 64,
-        height: 64,
-        borderRadius: 32,
+        width: wp('16%'),
+        height: wp('16%'),
+
+        borderRadius: wp('8%'),
+
         backgroundColor: '#F1ECFF',
+
         justifyContent: 'center',
         alignItems: 'center',
-        marginRight: 16,
+
+        marginRight: wp('4%'),
     },
 
     title: {
-        fontSize: 18,
+        fontSize: rf(17),
         fontWeight: '800',
         color: '#6C4DFF',
     },
 
     subtitle: {
-        marginTop: 6,
+        marginTop: hp('0.5%'),
+
         color: '#666',
-        fontSize: 14,
-        maxWidth: 220,
+
+        fontSize: rf(13),
+
+        flexShrink: 1,
     },
+
 });

@@ -1,4 +1,6 @@
 import React from 'react';
+import { useState } from 'react';
+import { RefreshControl } from 'react-native';
 import {
   View,
   Text,
@@ -8,7 +10,7 @@ import {
   TextInput,
   Image,
 } from 'react-native';
-
+import NotificationBell from '../../components/common/NotificationBell';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import {
@@ -18,6 +20,15 @@ import {
 } from '@expo/vector-icons';
 
 export default function UniformsScreen() {
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = async () => {
+    setRefreshing(true);
+
+    // later:
+    // await loadInventory();
+
+    setRefreshing(false);
+  };
 
   const uniforms = [
     {
@@ -44,6 +55,14 @@ export default function UniformsScreen() {
     <View style={styles.container}>
 
       <ScrollView
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#5B3DF5']}
+            tintColor="#5B3DF5"
+          />
+        }
         showsVerticalScrollIndicator={false}
       >
 
@@ -55,8 +74,9 @@ export default function UniformsScreen() {
         >
 
           <View style={styles.headerTop}>
-            <View>
-              <Text style={styles.headerTitle}>
+            <View style={styles.headerTextContainer}>
+              <Text style={styles.headerTitle}
+                allowFontScaling={false}>
                 Uniforms
               </Text>
 
@@ -65,21 +85,8 @@ export default function UniformsScreen() {
               </Text>
             </View>
 
-            <TouchableOpacity style={styles.bellButton}>
-              <Ionicons
-                name="notifications-outline"
-                size={28}
-                color="#fff"
-              />
-            </TouchableOpacity>
+            <NotificationBell />
           </View>
-
-          <MaterialCommunityIcons
-            name="tshirt-crew"
-            size={140}
-            color="rgba(255,255,255,0.05)"
-            style={styles.headerBgIcon}
-          />
 
         </LinearGradient>
 
@@ -100,12 +107,16 @@ export default function UniformsScreen() {
                 />
               </View>
 
-              <View>
-                <Text style={styles.manageTitle}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.manageTitle}
+                  allowFontScaling={false}
+                  numberOfLines={1}>
                   Manage Uniforms
                 </Text>
 
-                <Text style={styles.manageSubtitle}>
+                <Text style={styles.manageSubtitle}
+                  allowFontScaling={false}
+                  numberOfLines={1}>
                   Add, update and manage uniform items
                 </Text>
               </View>
@@ -133,8 +144,16 @@ export default function UniformsScreen() {
               />
             </View>
 
-            <Text style={styles.statNumber}>12</Text>
-            <Text style={styles.statLabel}>Total Items</Text>
+            <Text style={styles.statNumber}
+              allowFontScaling={false}>12</Text>
+            <Text
+              style={styles.statLabel}
+              allowFontScaling={false}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+            >
+              Total Items
+            </Text>
           </View>
 
           <View style={styles.statCard}>
@@ -146,8 +165,12 @@ export default function UniformsScreen() {
               />
             </View>
 
-            <Text style={styles.statNumber}>9</Text>
-            <Text style={styles.statLabel}>In Stock</Text>
+            <Text style={styles.statNumber}
+              allowFontScaling={false}>9</Text>
+            <Text style={styles.statLabel}
+              allowFontScaling={false}
+              numberOfLines={1}
+              adjustsFontSizeToFit>In Stock</Text>
           </View>
 
           <View style={styles.statCard}>
@@ -159,8 +182,12 @@ export default function UniformsScreen() {
               />
             </View>
 
-            <Text style={styles.statNumber}>2</Text>
-            <Text style={styles.statLabel}>Low Stock</Text>
+            <Text style={styles.statNumber}
+              allowFontScaling={false}>2</Text>
+            <Text style={styles.statLabel}
+              allowFontScaling={false}
+              numberOfLines={1}
+              adjustsFontSizeToFit>Low Stock</Text>
           </View>
 
           <View style={styles.statCard}>
@@ -172,8 +199,12 @@ export default function UniformsScreen() {
               />
             </View>
 
-            <Text style={styles.statNumber}>6</Text>
-            <Text style={styles.statLabel}>Assigned</Text>
+            <Text style={styles.statNumber}
+              allowFontScaling={false}>6</Text>
+            <Text style={styles.statLabel}
+              allowFontScaling={false}
+              numberOfLines={1}
+              adjustsFontSizeToFit>Assigned</Text>
           </View>
 
         </View>
@@ -190,7 +221,7 @@ export default function UniformsScreen() {
             />
 
             <TextInput
-              placeholder="Search uniform items..."
+              placeholder="Search uniforms..."
               placeholderTextColor="#999"
               style={styles.searchInput}
             />
@@ -260,12 +291,16 @@ export default function UniformsScreen() {
               />
             </View>
 
-            <View>
-              <Text style={styles.guideTitle}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.guideTitle}
+                allowFontScaling={false}
+                numberOfLines={1}>
                 Mandatory Uniform Guide
               </Text>
 
-              <Text style={styles.guideSubtitle}>
+              <Text style={styles.guideSubtitle}
+                allowFontScaling={false}
+                numberOfLines={1}>
                 Complete list of mandatory items
               </Text>
             </View>
@@ -281,7 +316,8 @@ export default function UniformsScreen() {
 
         {/* LIST */}
 
-        <Text style={styles.sectionTitle}>
+        <Text style={styles.sectionTitle}
+          allowFontScaling={false}>
           Uniforms Catalog
         </Text>
 
@@ -299,23 +335,39 @@ export default function UniformsScreen() {
                 style={styles.itemImage}
               />
 
-              <View style={{ flex: 1 }}>
+              <View
+                style={{
+                  flex: 1,
+                  minWidth: 0,
+                }}
+              >
 
-                <Text style={styles.itemName}>
+                <Text style={styles.itemName}
+                  allowFontScaling={false}
+                  numberOfLines={1}>
                   {item.name}
                 </Text>
 
-                <Text style={styles.itemCategory}>
+                <Text style={styles.itemCategory}
+                  allowFontScaling={false}
+                  numberOfLines={1}>
                   {item.category}
                 </Text>
 
-                <Text style={styles.itemSize}>
+                <Text style={styles.itemSize}
+                  allowFontScaling={false}
+                  numberOfLines={1}>
                   Size: {item.sizes}
                 </Text>
 
               </View>
 
-              <View style={{ alignItems: 'flex-end' }}>
+              <View
+                style={{
+                  width: 95,
+                  alignItems: 'flex-end',
+                }}
+              >
 
                 <View
                   style={[
@@ -337,7 +389,8 @@ export default function UniformsScreen() {
                   </Text>
                 </View>
 
-                <Text style={styles.qtyText}>
+                <Text style={styles.qtyText}
+                  allowFontScaling={false}>
                   Qty: {item.qty}
                 </Text>
 
@@ -376,13 +429,17 @@ const styles = StyleSheet.create({
   headerTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'flex-start',
   },
 
+  headerTextContainer: {
+    flex: 1,
+    marginRight: 12,
+  },
   headerTitle: {
     fontSize: 34,
     fontWeight: '800',
     color: '#fff',
-    marginTop: 14,
   },
 
   headerSubtitle: {
@@ -394,12 +451,6 @@ const styles = StyleSheet.create({
 
   bellButton: {
     marginTop: 10,
-  },
-
-  headerBgIcon: {
-    position: 'absolute',
-    right: -10,
-    top: 20,
   },
 
   manageCard: {
@@ -426,6 +477,7 @@ const styles = StyleSheet.create({
   manageLeft: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
   },
 
   manageIcon: {
@@ -581,6 +633,7 @@ const styles = StyleSheet.create({
   guideLeft: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
   },
 
   guideIcon: {
@@ -610,7 +663,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 16,
-    marginLeft: -1,
+    marginLeft: 12,
+    flexShrink: 0,
   },
 
   guideBtnText: {
@@ -646,7 +700,7 @@ const styles = StyleSheet.create({
   },
 
   itemName: {
-    fontSize: 26,
+    fontSize: 22,
     fontWeight: '700',
     color: '#16162E',
   },

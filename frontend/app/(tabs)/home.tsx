@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
+  RefreshControl,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import HeaderSection from '../../components/home/HeaderSection';
@@ -22,6 +23,19 @@ type ActionItem = {
 
 export default function HomeScreen() {
   const router = useRouter();
+  const [refreshing, setRefreshing] = React.useState(false);
+  const onRefresh = async () => {
+    setRefreshing(true);
+
+    try {
+      // Reload whatever data Home uses
+      console.log('Refreshing...');
+    } catch (error) {
+      console.log(error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
   const summaryData = [
     {
       id: 1,
@@ -116,6 +130,14 @@ export default function HomeScreen() {
   return (
     <View style={styles.container}>
       <ScrollView
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#5B4FCE']}
+            tintColor="#5B4FCE"
+          />
+        }
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
           paddingBottom: 140,

@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { format } from 'date-fns';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface AttendanceRecord {
   attendance_id: string;
@@ -25,7 +25,7 @@ export default function AttendanceHistoryScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const { userId, userName, type } = params;
-  
+
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -35,23 +35,38 @@ export default function AttendanceHistoryScreen() {
 
   const fetchAttendanceHistory = async () => {
     try {
-      const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
+      const BACKEND_URL =
+        process.env.EXPO_PUBLIC_BACKEND_URL;
+
+      const token =
+        await AsyncStorage.getItem(
+          'session_token'
+        );
+      if (!token) return;
+
       const response = await fetch(
         `${BACKEND_URL}/api/attendance/user/${userId}/${type}`,
-        { credentials: 'include' }
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
       );
 
       if (response.ok) {
         const data = await response.json();
+
         setRecords(data.records || []);
       }
     } catch (error) {
-      console.error('Failed to fetch attendance:', error);
+      console.error(
+        'Failed to fetch attendance:',
+        error
+      );
     } finally {
       setLoading(false);
     }
   };
-
   const handleDelete = (record: AttendanceRecord) => {
     Alert.alert(
       'Delete Attendance',
@@ -63,15 +78,24 @@ export default function AttendanceHistoryScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
+              const BACKEND_URL =
+                process.env.EXPO_PUBLIC_BACKEND_URL;
+
+              const token =
+                await AsyncStorage.getItem(
+                  'session_token'
+                );
+              if (!token) return;
+
               const response = await fetch(
                 `${BACKEND_URL}/api/attendance/${record.attendance_id}`,
                 {
                   method: 'DELETE',
-                  credentials: 'include',
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                  },
                 }
               );
-
               if (response.ok) {
                 Alert.alert('Success', 'Attendance deleted');
                 fetchAttendanceHistory();

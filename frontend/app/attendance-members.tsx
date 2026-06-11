@@ -2,7 +2,8 @@ import React, {
     useEffect,
     useState,
 } from 'react';
-
+import { wp, hp } from '../utils/responsive';
+import { rf } from '../utils/fonts';
 import {
     View,
     Text,
@@ -34,6 +35,7 @@ export default function AttendanceMembersScreen() {
     const router = useRouter();
     const { user } = useAuth();
     const canManageAttendance =
+        user?.role === 'admin' ||
         user?.permissions?.attendance;
 
     const [members, setMembers] =
@@ -52,11 +54,14 @@ export default function AttendanceMembersScreen() {
 
     const [attendanceMap, setAttendanceMap] =
         useState<any>({});
+    const hasAttendance =
+        Object.keys(attendanceMap).length > 0;
 
     const {
         attendanceType,
         selectedDate,
         editMode,
+        eventName,
     } = useLocalSearchParams();
 
     // FETCH MEMBERS
@@ -64,10 +69,25 @@ export default function AttendanceMembersScreen() {
 
         try {
 
-            const response = await fetch(
-                `${BACKEND_URL}/api/attendance/history-details/${attendanceType}/${selectedDate}`
-            );
+            const AsyncStorage =
+                require('@react-native-async-storage/async-storage').default;
 
+            const token =
+                await AsyncStorage.getItem(
+                    'session_token'
+                );
+            if (!token) return;
+
+            const response = await fetch(
+                `${BACKEND_URL}/api/attendance/history-details/${attendanceType}/${selectedDate}?event_name=${encodeURIComponent(
+                    String(eventName || '')
+                )}`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                }
+            );
             const data = await response.json();
 
             const map: any = {};
@@ -92,13 +112,23 @@ export default function AttendanceMembersScreen() {
 
             setLoading(true);
 
+            const AsyncStorage =
+                require('@react-native-async-storage/async-storage').default;
+
+            const token =
+                await AsyncStorage.getItem(
+                    'session_token'
+                );
+            if (!token) return;
+
             const response = await fetch(
                 `${BACKEND_URL}/api/attendance/members`,
                 {
-                    credentials: 'include',
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
                 }
             );
-
             const data = await response.json();
 
             // SORT ALPHABETICALLY
@@ -128,6 +158,18 @@ export default function AttendanceMembersScreen() {
 
     useEffect(() => {
 
+        if (!canManageAttendance) {
+
+            Alert.alert(
+                'Access Restricted',
+                'You do not have permission to view members.'
+            );
+
+            router.back();
+
+            return;
+        }
+
         fetchMembers();
 
         if (editMode === 'true') {
@@ -137,13 +179,12 @@ export default function AttendanceMembersScreen() {
         }
 
     }, []);
-
     // SEARCH
     useEffect(() => {
 
         const filtered = members.filter(
             (member) =>
-                member.name
+                (member.name || '')
                     .toLowerCase()
                     .includes(search.toLowerCase())
         );
@@ -190,32 +231,24 @@ export default function AttendanceMembersScreen() {
 
                 return;
             }
+            const markedCount = members.filter(
+                member => attendanceMap[member.user_id]
+            ).length;
 
-            const records =
-                filteredMembers
-                    .filter(
-                        (member) =>
-                            attendanceMap[
-                            member.user_id
-                            ]
-                    )
-                    .map((member) => ({
-                        user_id: member.user_id,
-
-                        status:
-                            attendanceMap[
-                            member.user_id
-                            ],
-                    }));
-            if (records.length === 0) {
+            if (markedCount === 0) {
 
                 Alert.alert(
                     'No Attendance Marked',
-                    'Please mark at least one member.'
+                    'Please mark attendance for at least one member.'
                 );
 
                 return;
             }
+
+            const records = members.map((member) => ({
+                user_id: member.user_id,
+                status: attendanceMap[member.user_id] || 'absent',
+            }));
 
             const response = await fetch(
                 `${BACKEND_URL}/api/attendance/bulk`,
@@ -231,11 +264,9 @@ export default function AttendanceMembersScreen() {
                     },
 
                     body: JSON.stringify({
-                        attendance_type:
-                            attendanceType,
-
+                        attendance_type: attendanceType,
+                        event_name: eventName,
                         date: selectedDate,
-
                         records,
                     }),
                 }
@@ -314,7 +345,11 @@ export default function AttendanceMembersScreen() {
                         </Text>
 
                         <Text style={styles.subtitle}>
-                            {attendanceType}
+                            {eventName ||
+                                (String(attendanceType)
+                                    .charAt(0)
+                                    .toUpperCase() +
+                                    String(attendanceType).slice(1))}
                         </Text>
 
                     </View>
@@ -339,6 +374,31 @@ export default function AttendanceMembersScreen() {
                 />
 
             </View>
+            <View style={styles.eventInfoCard}>
+
+                <Ionicons
+                    name="bookmark-outline"
+                    size={22}
+                    color="#5B3DF5"
+                />
+
+                <View style={{ marginLeft: 12, flex: 1 }}>
+
+                    <Text style={styles.eventInfoLabel}>
+                        Selected Event
+                    </Text>
+
+                    <Text style={styles.eventInfoValue}>
+                        {eventName}
+                    </Text>
+
+                    <Text style={styles.eventInfoDate}>
+                        {selectedDate}
+                    </Text>
+
+                </View>
+
+            </View>
 
             {/* MEMBERS */}
             <ScrollView
@@ -346,7 +406,6 @@ export default function AttendanceMembersScreen() {
                     paddingBottom: 30,
                 }}
             >
-
                 {loading ? (
 
                     <ActivityIndicator
@@ -359,32 +418,35 @@ export default function AttendanceMembersScreen() {
 
                 ) : (
 
-                    filteredMembers.map(
-                        (member: any) => (
+                    <>
 
-                            <View
-                                key={member.user_id}
-                                style={styles.memberCard}
-                            >
+                        {filteredMembers.map(
+                            (member: any) => (
 
-                                <View>
+                                <View
+                                    key={member.user_id}
+                                    style={styles.memberCard}
+                                >
 
-                                    <Text style={styles.memberName}>
-                                        {member.name}
-                                    </Text>
+                                    <View style={styles.memberInfo}>
 
-                                    <Text style={styles.memberRole}>
-                                        {`${member.role || 'Member'} • ${member.instrument || 'No Instrument'}`}
-                                    </Text>
+                                        <Text
+                                            style={styles.memberName}
+                                            numberOfLines={2}
+                                        >
+                                            {member.name}
+                                        </Text>
 
-                                </View>
+                                        <Text style={styles.memberRole}>
+                                            {`${(member.role || 'Member')
+                                                .charAt(0)
+                                                .toUpperCase() +
+                                                (member.role || 'Member')
+                                                    .slice(1)} • ${member.instrument || 'No Instrument'}`}
+                                        </Text>
 
-                                <View style={styles.actionsRow}>
+                                    </View>
 
-                                    {/* SETTINGS */}
-
-
-                                    {/* PRESENT */}
                                     <View style={styles.actionsRow}>
 
                                         <TouchableOpacity
@@ -393,10 +455,7 @@ export default function AttendanceMembersScreen() {
 
                                             style={[
                                                 styles.statusButton,
-
-                                                attendanceMap[
-                                                    member.user_id
-                                                ] === 'present'
+                                                attendanceMap[member.user_id] === 'present'
                                                     ? styles.presentBtn
                                                     : styles.inactiveBtn,
 
@@ -429,7 +488,14 @@ export default function AttendanceMembersScreen() {
                                                 }
                                             />
 
-                                            <Text style={styles.statusText}>
+                                            <Text
+                                                style={[
+                                                    styles.statusText,
+                                                    attendanceMap[member.user_id] === 'present' && {
+                                                        color: '#fff',
+                                                    },
+                                                ]}
+                                            >
                                                 Present
                                             </Text>
 
@@ -441,10 +507,7 @@ export default function AttendanceMembersScreen() {
 
                                             style={[
                                                 styles.statusButton,
-
-                                                attendanceMap[
-                                                    member.user_id
-                                                ] === 'absent'
+                                                attendanceMap[member.user_id] === 'absent'
                                                     ? styles.absentBtn
                                                     : styles.inactiveBtn,
 
@@ -477,27 +540,109 @@ export default function AttendanceMembersScreen() {
                                                 }
                                             />
 
-                                            <Text style={styles.statusText}>
+                                            <Text
+                                                style={[
+                                                    styles.statusText,
+                                                    attendanceMap[member.user_id] === 'absent' && {
+                                                        color: '#fff',
+                                                    },
+                                                ]}
+                                            >
                                                 Absent
                                             </Text>
 
                                         </TouchableOpacity>
 
                                     </View>
+
                                 </View>
 
+                            )
+                        )}
+
+                        {filteredMembers.length === 0 && (
+
+                            <View
+                                style={{
+                                    alignItems: 'center',
+                                    marginTop: 60,
+                                }}
+                            >
+
+                                <Ionicons
+                                    name="people-outline"
+                                    size={70}
+                                    color="#C7C7C7"
+                                />
+
+                                <Text
+                                    style={{
+                                        fontSize: 20,
+                                        fontWeight: '700',
+                                        color: '#16162E',
+                                        marginTop: 12,
+                                    }}
+                                >
+                                    No Members Found
+                                </Text>
+
+                                <Text
+                                    style={{
+                                        color: '#777',
+                                        marginTop: 6,
+                                    }}
+                                >
+                                    Try another search keyword.
+                                </Text>
+
                             </View>
-                        )
-                    )
+
+                        )}
+
+                    </>
+
                 )}
+
+                <View
+                    style={{
+                        marginHorizontal: 18,
+                        marginTop: 20,
+                        backgroundColor: '#fff',
+                        borderRadius: 18,
+                        padding: 16,
+                    }}
+                >
+                    <Text>
+                        Present: {
+                            Object.values(attendanceMap)
+                                .filter(v => v === 'present')
+                                .length
+                        }
+                    </Text>
+
+                    <Text>
+                        Absent: {
+                            Object.values(attendanceMap)
+                                .filter(v => v === 'absent')
+                                .length
+                        }
+                    </Text>
+                </View>
                 <TouchableOpacity
 
-                    disabled={!canManageAttendance || saving}
+                    disabled={
+                        !canManageAttendance ||
+                        saving ||
+                        !hasAttendance
+                    }
 
                     style={[
                         styles.saveButton,
-
-                        (!canManageAttendance || saving) && {
+                        (
+                            !canManageAttendance ||
+                            saving ||
+                            !hasAttendance
+                        ) && {
                             opacity: 0.55,
                         },
                     ]}
@@ -521,9 +666,9 @@ export default function AttendanceMembersScreen() {
 
                     <LinearGradient
                         colors={
-                            canManageAttendance
-                                ? ['#6C4DFF', '#5B3DF5']
-                                : ['#A8A8A8', '#8E8E8E']
+                            (!canManageAttendance || !hasAttendance)
+                                ? ['#A8A8A8', '#8E8E8E']
+                                : ['#6C4DFF', '#5B3DF5']
                         }
                         style={styles.saveGradient}
                     >
@@ -542,10 +687,10 @@ export default function AttendanceMembersScreen() {
 
                 </TouchableOpacity>
 
-            </ScrollView>
+            </ScrollView >
 
             {/* SAVE BUTTON */}
-        </View>
+        </View >
     );
 }
 
@@ -611,10 +756,6 @@ const styles = StyleSheet.create({
 
         padding: 18,
 
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-
         shadowColor: '#000',
         shadowOpacity: 0.05,
         shadowRadius: 10,
@@ -627,6 +768,9 @@ const styles = StyleSheet.create({
         fontWeight: '700',
         color: '#222',
     },
+    memberInfo: {
+        marginBottom: 14,
+    },
 
     memberRole: {
         marginTop: 4,
@@ -636,9 +780,9 @@ const styles = StyleSheet.create({
 
     actionsRow: {
         flexDirection: 'row',
-        gap: 8,
+        gap: 10,
+        justifyContent: 'space-between',
     },
-
     manageBtn: {
         width: 42,
         height: 42,
@@ -651,6 +795,7 @@ const styles = StyleSheet.create({
     },
 
     statusButton: {
+        flex: 1,
 
         flexDirection: 'row',
 
@@ -658,9 +803,7 @@ const styles = StyleSheet.create({
 
         justifyContent: 'center',
 
-        height: 42,
-
-        paddingHorizontal: 14,
+        height: 46,
 
         borderRadius: 14,
     },
@@ -721,6 +864,44 @@ const styles = StyleSheet.create({
         alignItems: 'center',
 
         marginTop: 2,
+    },
+    eventInfoCard: {
+        marginHorizontal: wp(4.5),
+        marginTop: hp(2),
+
+        backgroundColor: '#FFFFFF',
+
+        borderRadius: wp(5),
+
+        paddingVertical: hp(2),
+        paddingHorizontal: wp(4.5),
+
+        flexDirection: 'row',
+        alignItems: 'center',
+
+        shadowColor: '#000',
+        shadowOpacity: 0.05,
+        shadowRadius: 10,
+
+        elevation: 4,
+    },
+
+    eventInfoLabel: {
+        fontSize: rf(12),
+        color: '#777',
+    },
+
+    eventInfoValue: {
+        fontSize: rf(16),
+        fontWeight: '700',
+        color: '#16162E',
+        marginTop: hp(0.2),
+    },
+
+    eventInfoDate: {
+        fontSize: rf(12),
+        color: '#5B3DF5',
+        marginTop: hp(0.3),
     },
 
 });

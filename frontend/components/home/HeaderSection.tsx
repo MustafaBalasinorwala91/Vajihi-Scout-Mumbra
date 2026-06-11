@@ -1,3 +1,5 @@
+import { wp, hp } from '../../utils/responsive';
+import { rf } from '../../utils/fonts';
 import React from 'react';
 import {
     View,
@@ -54,13 +56,17 @@ export default function HeaderSection() {
 
 const styles = StyleSheet.create({
     header: {
-        paddingTop: 70,
-        paddingBottom: 140,
+        paddingTop: hp('8%'),
+        paddingBottom: hp('10%'),
+        minHeight: hp('42%'),
+
         alignItems: 'center',
-        borderBottomLeftRadius: 40,
-        borderBottomRightRadius: 40,
+
+        borderBottomLeftRadius: wp('10%'),
+        borderBottomRightRadius: wp('10%'),
+
         position: 'relative',
-        overflow: 'hidden',
+        overflow: 'visible',
     },
 
     topBar: {
@@ -68,56 +74,85 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingHorizontal: 24,
-        marginBottom: 30,
+
+        paddingHorizontal: wp('6%'),
+        marginBottom: hp('3%'),
+
         zIndex: 5,
     },
 
     homeTitle: {
         color: '#fff',
-        fontSize: 28,
+        fontSize: rf(28),
         fontWeight: '800',
     },
 
     bandOverlay: {
         position: 'absolute',
+
         width: '120%',
-        height: 270,
-        top: 180,
-        opacity: 0.35,
+        height: hp('32%'),
+
+        top: hp('16%'),
+
+        opacity: 0.55,
     },
 
     logo: {
-        width: 110,
-        height: 110,
-        marginBottom: 40,
+        width: wp('25%'),
+        height: wp('25%'),
+        top: hp('-1%'),
+
+        maxWidth: 120,
+        maxHeight: 120,
+
+        marginBottom: hp('3%'),
+
         zIndex: 5,
     },
 
     title: {
         color: '#FFD76A',
-        fontSize: 33,
-        top: 65,
+
+        fontSize: rf(30),
         fontWeight: '800',
+
         textAlign: 'center',
+        marginTop: hp('2%'),
+
+        width: '100%',
+        paddingHorizontal: wp('3%'),
+
         zIndex: 5,
     },
 
     subtitle: {
         color: '#F5EFFF',
-        fontSize: 17,
-        top: 60,
-        marginTop: 7,
-        zIndex: 2,
+
+        fontSize: rf(16),
+
+        textAlign: 'center',
+
+        width: '100%',
+        paddingHorizontal: wp('3%'),
+
+        marginTop: hp('0.7%'),
+
+        zIndex: 5,
     },
 
     wave: {
         position: 'absolute',
-        bottom: -35,
+
+        bottom: -hp('4%'),
+
         width: '120%',
-        height: 90,
+
+        height: hp('10%'),
+
         backgroundColor: '#F5F5F5',
-        borderTopLeftRadius: 100,
-        borderTopRightRadius: 100,
+
+        borderTopLeftRadius: wp('25%'),
+        borderTopRightRadius: wp('25%'),
     },
 });

@@ -1,5 +1,6 @@
 import React from 'react';
-
+import { useState } from 'react';
+import { RefreshControl } from 'react-native';
 import {
   View,
   Text,
@@ -9,7 +10,7 @@ import {
   TextInput,
   Image,
 } from 'react-native';
-
+import NotificationBell from '../../components/common/NotificationBell';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import {
@@ -19,10 +20,27 @@ import {
 } from '@expo/vector-icons';
 
 export default function InventoryScreen() {
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = async () => {
+    setRefreshing(true);
+
+    // later:
+    // await loadInventory();
+
+    setRefreshing(false);
+  };
   return (
     <View style={styles.container}>
 
       <ScrollView
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#5B3DF5']}
+            tintColor="#5B3DF5"
+          />
+        }
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 120 }}
       >
@@ -32,24 +50,6 @@ export default function InventoryScreen() {
           colors={['#2B145A', '#5B3DF5']}
           style={styles.header}
         >
-
-          {/* Background Overlay */}
-          <View style={styles.overlayCircle1} />
-          <View style={styles.overlayCircle2} />
-
-          <MaterialCommunityIcons
-            name="music-clef-treble"
-            size={120}
-            color="rgba(255,255,255,0.04)"
-            style={styles.musicIcon1}
-          />
-
-          <Ionicons
-            name="musical-notes"
-            size={90}
-            color="rgba(255,255,255,0.05)"
-            style={styles.musicIcon2}
-          />
 
           <View style={styles.headerTop}>
 
@@ -62,17 +62,7 @@ export default function InventoryScreen() {
                 Manage instruments and band items
               </Text>
             </View>
-
-            <TouchableOpacity style={styles.bellButton}>
-              <Ionicons
-                name="notifications-outline"
-                size={24}
-                color="#fff"
-              />
-
-              <View style={styles.notificationDot} />
-            </TouchableOpacity>
-
+            <NotificationBell />
           </View>
 
           {/* MANAGE INVENTORY CARD */}
@@ -114,8 +104,6 @@ export default function InventoryScreen() {
             </LinearGradient>
 
           </TouchableOpacity>
-
-          <View style={styles.wave} />
 
         </LinearGradient>
 
@@ -227,7 +215,7 @@ export default function InventoryScreen() {
             />
 
             <TextInput
-              placeholder="Search instruments or items..."
+              placeholder="Search inventory..."
               placeholderTextColor="#999"
               style={styles.searchInput}
             />
@@ -354,11 +342,13 @@ export default function InventoryScreen() {
 
           <View style={styles.itemDetails}>
 
-            <Text style={styles.itemTitle}>
+            <Text style={styles.itemTitle}
+              numberOfLines={1}>
               Drum
             </Text>
 
-            <Text style={styles.itemCategory}>
+            <Text style={styles.itemCategory}
+              numberOfLines={1}>
               Percussion Instrument
             </Text>
 
@@ -369,7 +359,8 @@ export default function InventoryScreen() {
                 color="#6C4DFF"
               />
 
-              <Text style={styles.holderText}>
+              <Text style={styles.holderText}
+                numberOfLines={1}>
                 Holder: Mustu
               </Text>
             </View>
@@ -383,7 +374,9 @@ export default function InventoryScreen() {
                   color="#888"
                 />
 
-                <Text style={styles.dateText}>
+                <Text style={styles.dateText}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit>
                   Added: 12 Apr 2025
                 </Text>
               </View>
@@ -592,42 +585,10 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
 
-  overlayCircle1: {
-    position: 'absolute',
-    width: 300,
-    height: 300,
-    borderRadius: 150,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    top: -80,
-    right: -120,
-  },
-
-  overlayCircle2: {
-    position: 'absolute',
-    width: 220,
-    height: 220,
-    borderRadius: 120,
-    backgroundColor: 'rgba(255,255,255,0.03)',
-    bottom: -50,
-    left: -80,
-  },
-
-  musicIcon1: {
-    position: 'absolute',
-    top: 20,
-    right: 40,
-  },
-
-  musicIcon2: {
-    position: 'absolute',
-    top: 80,
-    right: 120,
-  },
-
   headerTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
   },
 
   headerTitle: {
@@ -705,17 +666,6 @@ const styles = StyleSheet.create({
     color: '#E9DDFF',
     marginTop: 6,
     fontSize: 15,
-  },
-
-  wave: {
-    position: 'absolute',
-    bottom: -40,
-    left: -20,
-    right: -20,
-    height: 80,
-    backgroundColor: '#F6F7FB',
-    borderTopLeftRadius: 100,
-    borderTopRightRadius: 100,
   },
 
   statsContainer: {
@@ -924,6 +874,7 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 16,
     justifyContent: 'center',
+    minWidth: 0,
   },
 
   itemTitle: {
@@ -967,6 +918,7 @@ const styles = StyleSheet.create({
   },
 
   rightSection: {
+    width: 95,
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -1,4 +1,5 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { wp, hp } from '../utils/responsive';
+import { rf } from '../utils/fonts';
 import React, { useState } from 'react';
 import {
   View,
@@ -19,7 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { setUser, checkAuth } = useAuth();
+  const { saveUser } = useAuth();
   const [its_no, setITS_no] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -48,15 +49,10 @@ export default function LoginScreen() {
 
       if (response.ok) {
         const data = await response.json();
-        await AsyncStorage.setItem(
-          'session_token',
+        await saveUser(
+          data.user,
           data.session_token
         );
-        await AsyncStorage.setItem(
-          'user',
-          JSON.stringify(data.user)
-        );
-        setUser(data.user);
 
         router.replace('/(tabs)/home');
       } else {
@@ -83,19 +79,24 @@ export default function LoginScreen() {
           resizeMode="contain"
         />
 
-        <Text style={styles.title}>Vajihi Scout Mumbra</Text>
-        <Text style={styles.subtitle}>Scout & Band - BGMM</Text>
-        <Text style={styles.tagline}>Long Live His Holiness</Text>
+        <Text style={styles.title}
+          allowFontScaling={false}>Vajihi Scout Mumbra</Text>
+        <Text style={styles.subtitle}
+          allowFontScaling={false}>Scout & Band - BGMM</Text>
+        <Text style={styles.tagline}
+          allowFontScaling={false}>Long Live His Holiness</Text>
 
         <View style={styles.loginCard}>
-          <Text style={styles.welcomeText}>Welcome!</Text>
-          <Text style={styles.instructionText}>Sign in to your account</Text>
+          <Text style={styles.welcomeText}
+            allowFontScaling={false}>Welcome!</Text>
+          <Text style={styles.instructionText}
+            allowFontScaling={false}>Sign in to your account</Text>
 
           <View style={styles.inputContainer}>
             <Ionicons name="person-outline" size={20} color="#666" style={styles.inputIcon} />
             <TextInput
               style={styles.input}
-              placeholder="ITS_No"
+              placeholder="ITS Number / Username"
               placeholderTextColor="#999"
               value={its_no}
               onChangeText={setITS_no}
@@ -133,7 +134,8 @@ export default function LoginScreen() {
             {loading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.loginButtonText}>Login</Text>
+              <Text style={styles.loginButtonText}
+                allowFontScaling={false}>Login</Text>
             )}
           </TouchableOpacity>
 
@@ -141,13 +143,16 @@ export default function LoginScreen() {
             style={styles.forgotPassword}
             onPress={() => router.push('/forgot-password')}
           >
-            <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+            <Text style={styles.forgotPasswordText}
+              allowFontScaling={false}>Forgot Password?</Text>
           </TouchableOpacity>
 
           <View style={styles.signupContainer}>
-            <Text style={styles.signupText}>Don't have an account? </Text>
+            <Text style={styles.signupText}
+              allowFontScaling={false}>Don't have an account? </Text>
             <TouchableOpacity onPress={() => router.push('/signup')}>
-              <Text style={styles.signupLink}>Sign Up</Text>
+              <Text style={styles.signupLink}
+                allowFontScaling={false}>Sign Up</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -168,25 +173,27 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   logo: {
-    width: 150,
-    height: 150,
-    marginBottom: 16,
+    width: wp(38),
+    height: wp(38),
+    maxWidth: 180,
+    maxHeight: 180,
+    marginBottom: hp(2),
   },
   title: {
-    fontSize: 28,
+    fontSize: rf(28),
     fontWeight: 'bold',
     color: '#F8D57E',
     textAlign: 'center',
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 18,
+    fontSize: rf(18),
     color: '#F8D57E',
     textAlign: 'center',
     marginBottom: 4,
   },
   tagline: {
-    fontSize: 14,
+    fontSize: rf(14),
     color: '#F8D57E',
     textAlign: 'center',
     marginBottom: 32,
@@ -204,14 +211,14 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   welcomeText: {
-    fontSize: 24,
+    fontSize: rf(24),
     fontWeight: 'bold',
     color: '#1a1a2e',
     textAlign: 'center',
     marginBottom: 8,
   },
   instructionText: {
-    fontSize: 14,
+    fontSize: rf(14),
     color: '#666',
     textAlign: 'center',
     marginBottom: 24,

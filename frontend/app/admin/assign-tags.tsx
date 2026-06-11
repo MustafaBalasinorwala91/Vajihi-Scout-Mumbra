@@ -10,10 +10,10 @@ import {
   Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-
+import AsyncStorage from '@react-native-async-storage/async-storage';
 interface User {
   user_id: string;
-  email: string;
+  email_id?: string;
   name: string;
   role: string;
   tag?: string;
@@ -42,10 +42,20 @@ export default function AssignTagsScreen() {
   const fetchUsers = async () => {
     try {
       const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
-      const response = await fetch(`${BACKEND_URL}/api/users`, {
-        credentials: 'include',
-      });
+      const token =
+        await AsyncStorage.getItem(
+          'session_token'
+        );
+      if (!token) return;
 
+      const response = await fetch(
+        `${BACKEND_URL}/api/users`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
       if (response.ok) {
         const data = await response.json();
         const members = data.filter((u: User) => u.role !== 'admin');
@@ -67,17 +77,26 @@ export default function AssignTagsScreen() {
     setSaving(true);
     try {
       const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
-      const response = await fetch(`${BACKEND_URL}/api/admin/assign-tag`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          user_id: selectedUser.user_id,
-          tag: selectedTag,
-        }),
-      });
+      const token =
+        await AsyncStorage.getItem(
+          'session_token'
+        );
+      if (!token) return;
+
+      const response = await fetch(
+        `${BACKEND_URL}/api/admin/assign-tag`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            user_id: selectedUser.user_id,
+            tag: selectedTag,
+          }),
+        }
+      );
 
       if (response.ok) {
         Alert.alert('Success', 'Tag assigned successfully');
@@ -134,7 +153,7 @@ export default function AssignTagsScreen() {
           <TouchableOpacity key={user.user_id} style={styles.userCard} onPress={() => openTagModal(user)}>
             <View style={styles.userInfo}>
               <Text style={styles.userName}>{user.name}</Text>
-              <Text style={styles.userEmail}>{user.email}</Text>
+              <Text style={styles.userEmail}>{user.email_id}</Text>
             </View>
             <View style={styles.tagContainer}>
               {user.tag ? (
@@ -163,7 +182,7 @@ export default function AssignTagsScreen() {
 
             <View style={styles.modalBody}>
               <Text style={styles.memberName}>{selectedUser?.name}</Text>
-              <Text style={styles.memberEmail}>{selectedUser?.email}</Text>
+              <Text style={styles.memberEmail}>{selectedUser?.email_id}</Text>
 
               <View style={styles.tagsContainer}>
                 {TAGS.map((tag) => (

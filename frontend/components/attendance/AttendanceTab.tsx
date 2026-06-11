@@ -1,3 +1,5 @@
+import { wp, hp } from '../../utils/responsive';
+import { rf } from '../../utils/fonts';
 import React from 'react';
 import {
     TouchableOpacity,
@@ -38,11 +40,12 @@ const AttendanceTab = ({
             >
                 <Ionicons
                     name={icon as any}
-                    size={18}
+                    size={rf(18)}
                     color="#fff"
                 />
 
-                <Text style={styles.label}>
+                <Text style={styles.label}
+                    numberOfLines={1}>
                     {label}
                 </Text>
             </LinearGradient>
@@ -53,22 +56,30 @@ const AttendanceTab = ({
 export default AttendanceTab;
 
 const styles = StyleSheet.create({
+
     wrapper: {
-        marginRight: 12,
+        marginRight: wp('3%'),
     },
 
     container: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 20,
-        height: 52,
-        borderRadius: 20,
+
+        paddingHorizontal: wp('5%'),
+
+        minHeight: hp('6%'),
+
+        borderRadius: wp('5%'),
     },
 
     label: {
         color: '#fff',
-        marginLeft: 8,
+
+        marginLeft: wp('2%'),
+
         fontWeight: '700',
-        fontSize: 14,
+
+        fontSize: rf(14),
     },
+
 });

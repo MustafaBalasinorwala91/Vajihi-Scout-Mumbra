@@ -1,4 +1,7 @@
-import axios from 'axios';
+import { Dimensions } from 'react-native';
+import { wp, hp } from '../../utils/responsive';
+import { rf } from '../../utils/fonts';
+import api from '../../services/api';
 import { useEffect, useState } from 'react';
 import {
   View,
@@ -10,7 +13,7 @@ import {
 } from 'react-native';
 
 import { LinearGradient } from 'expo-linear-gradient';
-
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useRouter } from 'expo-router';
@@ -22,11 +25,47 @@ import CalendarDay from '../../components/attendance/CalendarDay';
 
 export default function AttendanceScreen() {
 
+  const SCREEN_WIDTH = Dimensions.get('window').width;
+
+  const CALENDAR_PADDING = 32;
+  const CELL_SIZE =
+    Math.floor((SCREEN_WIDTH - 68) / 7);
   const router = useRouter();
   const { user } = useAuth();
 
   const [attendanceType, setAttendanceType] =
     useState('practice');
+  const [eventName, setEventName] =
+    useState('Normal Practice');
+  const EVENT_OPTIONS = {
+    practice: [
+      'Normal Practice',
+      'Full-Day Practice',
+      'Composing Practice',
+      'Specific Instrument Practice',
+    ],
+
+    khidmat: [
+      'Jaman Khidmat',
+      'Salwat Takseem',
+      'Flow Management',
+    ],
+
+    duties: [
+      'Local Duty',
+      'Milad Duty',
+      'Ziyafat Duty',
+      '15th August',
+      '26th January',
+    ],
+  };
+  useEffect(() => {
+    setEventName(
+      EVENT_OPTIONS[
+      attendanceType as keyof typeof EVENT_OPTIONS
+      ][0]
+    );
+  }, [attendanceType]);
 
   const [selectedDate, setSelectedDate] =
     useState(
@@ -34,14 +73,21 @@ export default function AttendanceScreen() {
     );
   const [markedDates, setMarkedDates] = useState<any[]>([]);
   const canManageAttendance =
+    user?.role === 'admin' ||
     user?.permissions?.attendance;
   useEffect(() => {
+
+    if (!user) return;
 
     loadAttendanceDates();
 
     loadAttendanceStats();
 
-  }, [attendanceType, canManageAttendance]);
+  }, [
+    user,
+    attendanceType,
+    canManageAttendance
+  ]);
 
   const [refreshing, setRefreshing] =
     useState(false);
@@ -57,9 +103,16 @@ export default function AttendanceScreen() {
 
   const loadAttendanceDates = async () => {
 
+    const token =
+      await AsyncStorage.getItem(
+        'session_token'
+      );
+
+    if (!token) return;
+
     try {
 
-      const response = await axios.get(
+      const response = await api.get(
         `${BACKEND_URL}/api/attendance/dates/${attendanceType.toLowerCase()}`
       );
 
@@ -74,69 +127,57 @@ export default function AttendanceScreen() {
   };
   const loadAttendanceStats = async () => {
 
-    try {
-
-      const endpoint =
-        canManageAttendance
-          ? `${BACKEND_URL}/api/attendance/history/${attendanceType}`
-          : `${BACKEND_URL}/api/attendance/my-stats/${attendanceType}`;
-
-      const response = await axios.get(
-        endpoint,
-        {
-          withCredentials: true,
-        }
+    const token =
+      await AsyncStorage.getItem(
+        'session_token'
       );
 
-      // MEMBER PERSONAL STATS
-      if (!canManageAttendance) {
+    if (!token) return;
+
+    try {
+
+      // MEMBER
+      if (user?.role !== 'admin') {
+
+        const response = await api.get(
+          `${BACKEND_URL}/api/attendance/my-stats/${attendanceType}`
+        );
 
         setStats(response.data);
 
         return;
       }
 
-      // ADMIN / MANAGER ORGANIZATION STATS
-      const history = response.data;
-
-      let total = history.length;
-
-      let present = 0;
-
-      let absent = 0;
-
-      history.forEach((item: any) => {
-
-        present += item.present;
-
-        absent += item.absent;
-
-      });
-
-      const percentage =
-        present + absent > 0
-          ? Math.round(
-            (present / (present + absent)) * 100
-          )
-          : 0;
+      const response = await api.get(
+        `${BACKEND_URL}/api/attendance/overall-stats/${attendanceType}`
+      );
 
       setStats({
-        total,
-        present,
-        absent,
-        percentage,
+        total: response.data.sessions,
+        present: response.data.present,
+        absent: response.data.absent,
+        percentage: response.data.percentage,
       });
-
-    } catch (error) {
+    } catch (error: any) {
 
       console.log(
-        'LOAD STATS ERROR:',
-        error
+        'STATUS:',
+        error?.response?.status
+      );
+
+      console.log(
+        'DATA:',
+        error?.response?.data
+      );
+
+      console.log(
+        'TOKEN:',
+        await AsyncStorage.getItem('session_token')
       );
 
     }
-  };
 
+  };
   const onRefresh = async () => {
 
     setRefreshing(true);
@@ -362,7 +403,11 @@ export default function AttendanceScreen() {
           <AttendanceCard
             icon="calendar"
             value={String(stats.total)}
-            label="Total Days"
+            label={
+              user?.role === 'admin'
+                ? "Sessions"
+                : "Total"
+            }
             color="#7B61FF"
           />
 
@@ -419,8 +464,8 @@ export default function AttendanceScreen() {
                   <View
                     key={`empty-${index}`}
                     style={{
-                      width: 44,
-                      height: 44,
+                      width: CELL_SIZE,
+                      height: CELL_SIZE,
                     }}
                   />
                 );
@@ -428,32 +473,27 @@ export default function AttendanceScreen() {
 
               const formattedDate =
                 `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+              const attendance =
+                markedDates.find(
+                  (item) => item.date === formattedDate
+                );
 
               return (
                 <CalendarDay
                   key={day}
                   day={day}
-
+                  size={CELL_SIZE}
                   selected={
                     selectedDate === formattedDate
                   }
-
-                  marked={
-                    markedDates.find(
-                      item =>
-                        item.date === formattedDate &&
-                        item.status === 'present'
-                    )
+                  presentCount={
+                    attendance?.presentCount ||
+                    (attendance?.present ? 1 : 0)
                   }
-
-                  absent={
-                    markedDates.find(
-                      item =>
-                        item.date === formattedDate &&
-                        item.status === 'absent'
-                    )
+                  absentCount={
+                    attendance?.absentCount ||
+                    (attendance?.absent ? 1 : 0)
                   }
-
                   onPress={() => handleSelectDay(day)}
                 />
               );
@@ -497,43 +537,89 @@ export default function AttendanceScreen() {
           </View>
 
         </View>
+        {canManageAttendance && (
+          <View style={styles.eventCard}>
 
-        {/* VIEW MEMBERS BUTTON */}
-        <TouchableOpacity
-
-          style={styles.viewButton}
-
-          onPress={() => {
-
-            router.push({
-              pathname: '/attendance-members',
-              params: {
-                attendanceType,
-                selectedDate,
-              },
-            });
-
-          }}
-        >
-
-          <LinearGradient
-            colors={['#6C4DFF', '#5B3DF5']}
-            style={styles.viewGradient}
-          >
-
-            <Ionicons
-              name="people-outline"
-              size={22}
-              color="#fff"
-            />
-
-            <Text style={styles.viewText}>
-              View Members
+            <Text style={styles.eventTitle}>
+              Select Event
             </Text>
 
-          </LinearGradient>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+            >
+              {EVENT_OPTIONS[
+                attendanceType as keyof typeof EVENT_OPTIONS
+              ].map((item) => (
 
-        </TouchableOpacity>
+                <TouchableOpacity
+                  key={item}
+                  style={[
+                    styles.eventChip,
+                    eventName === item &&
+                    styles.eventChipActive,
+                  ]}
+                  onPress={() => setEventName(item)}
+                >
+
+                  <Text
+                    style={[
+                      styles.eventChipText,
+                      eventName === item &&
+                      styles.eventChipTextActive,
+                    ]}
+                  >
+                    {item}
+                  </Text>
+
+                </TouchableOpacity>
+
+              ))}
+            </ScrollView>
+
+          </View>
+        )}
+
+        {/* VIEW MEMBERS BUTTON */}
+        {canManageAttendance && (
+
+          <TouchableOpacity
+
+            style={styles.viewButton}
+
+            onPress={() => {
+
+              router.push({
+                pathname: '/attendance-members',
+                params: {
+                  attendanceType,
+                  selectedDate,
+                  eventName,
+                },
+              });
+
+            }}
+          >
+
+            <LinearGradient
+              colors={['#6C4DFF', '#5B3DF5']}
+              style={styles.viewGradient}
+            >
+
+              <Ionicons
+                name="people-outline"
+                size={22}
+                color="#fff"
+              />
+
+              <Text style={styles.viewText}>
+                View Members
+              </Text>
+
+            </LinearGradient>
+
+          </TouchableOpacity>
+        )}
 
         <View style={styles.historyButtonsContainer}>
 
@@ -688,18 +774,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     marginTop: 24,
-    gap: 8,
   },
 
   weekRow: {
     flexDirection: 'row',
-    flexWrap: 'nowrap',
-    gap: 8,
-    marginBottom: 18,
+    justifyContent: 'space-between',
   },
 
   weekText: {
-    width: 44,
+    flex: 1,
     textAlign: 'center',
     fontSize: 15,
     fontWeight: '700',
@@ -780,6 +863,54 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     marginLeft: 10,
+  },
+  eventCard: {
+    backgroundColor: '#fff',
+    marginHorizontal: wp(4.5),
+    marginTop: hp(2.2),
+    borderRadius: wp(6),
+    padding: wp(4.5),
+
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 3,
+    },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+
+  eventTitle: {
+    fontSize: rf(16),
+    fontWeight: '700',
+    color: '#16162E',
+    marginBottom: hp(1.5),
+  },
+
+  eventChip: {
+    paddingHorizontal: wp(4),
+    paddingVertical: hp(1.2),
+    borderRadius: wp(5),
+    backgroundColor: '#F3F0FF',
+    marginRight: wp(2.5),
+    minHeight: hp(5),
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  eventChipActive: {
+    backgroundColor: '#5B3DF5',
+  },
+
+  eventChipText: {
+    color: '#5B3DF5',
+    fontWeight: '600',
+    fontSize: rf(13),
+  },
+
+  eventChipTextActive: {
+    color: '#fff',
   },
 
 });

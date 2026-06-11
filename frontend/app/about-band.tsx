@@ -1,4 +1,5 @@
 import React from 'react';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
     View,
     Text,
@@ -26,13 +27,13 @@ export default function AboutBandScreen() {
 
         {
             icon: 'calendar',
-            value: '1972',
+            value: '2002',
             label: 'Established Year',
             color: '#7C4DFF',
         },
         {
             icon: 'shield-checkmark',
-            value: '52+',
+            value: '20+',
             label: 'Years Completed',
             color: '#22C55E',
         },
@@ -44,7 +45,7 @@ export default function AboutBandScreen() {
         },
         {
             icon: 'drum',
-            value: '32',
+            value: '35',
             label: 'Marches We Play',
             color: '#8B5CF6',
         },
@@ -56,13 +57,13 @@ export default function AboutBandScreen() {
         },
         {
             icon: 'people',
-            value: '126',
+            value: '62',
             label: 'Active Members',
             color: '#3B82F6',
         },
         {
             icon: 'ribbon',
-            value: '12',
+            value: '8',
             label: 'Leadership Positions',
             color: '#EF4444',
         },
@@ -120,7 +121,10 @@ export default function AboutBandScreen() {
     ];
 
     return (
-        <View style={styles.container}>
+        <SafeAreaView
+            style={styles.container}
+            edges={['top']}
+        >
 
             <ScrollView
                 showsVerticalScrollIndicator={false}
@@ -156,11 +160,13 @@ export default function AboutBandScreen() {
 
                     </View>
 
-                    <Text style={styles.headerTitle}>
+                    <Text style={styles.headerTitle}
+                        allowFontScaling={false}>
                         About Our Band
                     </Text>
 
-                    <Text style={styles.headerSubtitle}>
+                    <Text style={styles.headerSubtitle}
+                        allowFontScaling={false}>
                         Know about our legacy, journey and values
                     </Text>
 
@@ -185,13 +191,21 @@ export default function AboutBandScreen() {
                         resizeMode="contain"
                     />
 
-                    <View style={{ flex: 1 }}>
+                    <View
+                        style={{
+                            flex: 1,
+                            minWidth: 0,
+                        }}
+                    >
 
-                        <Text style={styles.bandName}>
+                        <Text style={styles.bandName}
+                            numberOfLines={2}
+                            allowFontScaling={false}>
                             Vajihi Scout Mumbra
                         </Text>
 
-                        <Text style={styles.bandSubtitle}>
+                        <Text style={styles.bandSubtitle}
+                            allowFontScaling={false}>
                             BGMM - Long Live His Holiness
                         </Text>
 
@@ -207,7 +221,8 @@ export default function AboutBandScreen() {
                                 color="#fff"
                             />
 
-                            <Text style={styles.verifiedText}>
+                            <Text style={styles.verifiedText}
+                                allowFontScaling={false}>
                                 Verified Organisation
                             </Text>
                         </View>
@@ -244,11 +259,14 @@ export default function AboutBandScreen() {
                                     />
                                 </View>
 
-                                <Text style={styles.statValue}>
+                                <Text style={styles.statValue}
+                                    allowFontScaling={false}>
                                     {item.value}
                                 </Text>
 
-                                <Text style={styles.statLabel}>
+                                <Text style={styles.statLabel}
+                                    allowFontScaling={false}
+                                    numberOfLines={2}>
                                     {item.label}
                                 </Text>
 
@@ -288,13 +306,21 @@ export default function AboutBandScreen() {
                                     />
                                 </View>
 
-                                <View style={{ flex: 1 }}>
+                                <View
+                                    style={{
+                                        flex: 1,
+                                        minWidth: 0,
+                                    }}
+                                >
 
-                                    <Text style={styles.sectionTitle}>
+                                    <Text style={styles.sectionTitle}
+                                        allowFontScaling={false}
+                                        numberOfLines={1}>
                                         {item.title}
                                     </Text>
 
-                                    <Text style={styles.sectionSubtitle}>
+                                    <Text style={styles.sectionSubtitle}
+                                        numberOfLines={2}>
                                         {item.subtitle}
                                     </Text>
 
@@ -316,8 +342,8 @@ export default function AboutBandScreen() {
                 <View style={{ height: 100 }} />
 
             </ScrollView>
+        </SafeAreaView>
 
-        </View>
     );
 }
 
@@ -354,7 +380,7 @@ const styles = StyleSheet.create({
     },
 
     headerTitle: {
-        fontSize: 42,
+        fontSize: 36,
         fontWeight: '800',
         color: '#fff',
         marginTop: 28,
@@ -390,6 +416,7 @@ const styles = StyleSheet.create({
         borderRadius: 32,
         padding: 22,
         flexDirection: 'row',
+        alignItems: 'flex-start',
         shadowColor: '#000',
         shadowOffset: {
             width: 0,
@@ -407,7 +434,7 @@ const styles = StyleSheet.create({
     },
 
     bandName: {
-        fontSize: 30,
+        fontSize: 24,
         fontWeight: '800',
         color: '#16162E',
     },

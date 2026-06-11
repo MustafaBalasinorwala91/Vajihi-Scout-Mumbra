@@ -10,9 +10,9 @@ import {
   Image,
   Modal,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-
+import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 interface User {
   user_id: string;
   username: string;
@@ -39,10 +39,14 @@ export default function ManageMembersScreen() {
   const fetchUsers = async () => {
     try {
       const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
-      const response = await fetch(`${BACKEND_URL}/api/users`, {
-        credentials: 'include',
-      });
+      const token = await AsyncStorage.getItem('session_token');
+      if (!token) return;
 
+      const response = await fetch(`${BACKEND_URL}/api/users`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
       if (response.ok) {
         const data = await response.json();
         const members = data.filter((u: User) => u.role !== 'admin');
@@ -62,10 +66,17 @@ export default function ManageMembersScreen() {
 
     try {
       const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
-      const response = await fetch(`${BACKEND_URL}/api/admin/user-profile/${user.user_id}`, {
-        credentials: 'include',
-      });
+      const token = await AsyncStorage.getItem('session_token');
+      if (!token) return;
 
+      const response = await fetch(
+        `${BACKEND_URL}/api/admin/user-profile/${user.user_id}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
       if (response.ok) {
         const data = await response.json();
         setProfileData(data);
@@ -90,10 +101,18 @@ export default function ManageMembersScreen() {
           onPress: async () => {
             try {
               const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
-              const response = await fetch(`${BACKEND_URL}/api/admin/delete-user/${user.user_id}`, {
-                method: 'DELETE',
-                credentials: 'include',
-              });
+              const token = await AsyncStorage.getItem('session_token');
+              if (!token) return;
+
+              const response = await fetch(
+                `${BACKEND_URL}/api/admin/delete-user/${user.user_id}`,
+                {
+                  method: 'DELETE',
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                  },
+                }
+              );
 
               if (response.ok) {
                 Alert.alert('Success', 'Member deleted successfully');
@@ -112,30 +131,60 @@ export default function ManageMembersScreen() {
     );
   };
 
-  const assignBadge = async (userId: string, badge: string) => {
+  const assignBadge = async (
+    userId: string,
+    badge: string
+  ) => {
     try {
-      const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
-      const response = await fetch(`${BACKEND_URL}/api/admin/assign-badge`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({ user_id: userId, badge }),
-      });
+      const BACKEND_URL =
+        process.env.EXPO_PUBLIC_BACKEND_URL;
+
+      const token =
+        await AsyncStorage.getItem(
+          'session_token'
+        );
+      if (!token) return;
+
+      const response = await fetch(
+        `${BACKEND_URL}/api/admin/assign-badge`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            user_id: userId,
+            badge,
+          }),
+        }
+      );
 
       if (response.ok) {
-        Alert.alert('Success', `${badge.charAt(0).toUpperCase() + badge.slice(1)} badge assigned!`);
+        Alert.alert(
+          'Success',
+          `${badge.charAt(0).toUpperCase() + badge.slice(1)} badge assigned!`
+        );
+
         fetchUsers();
       } else {
-        Alert.alert('Error', 'Failed to assign badge');
+        Alert.alert(
+          'Error',
+          'Failed to assign badge'
+        );
       }
     } catch (error) {
-      console.error('Failed to assign badge:', error);
-      Alert.alert('Error', 'Failed to assign badge');
+      console.error(
+        'Failed to assign badge:',
+        error
+      );
+
+      Alert.alert(
+        'Error',
+        'Failed to assign badge'
+      );
     }
   };
-
   if (loading) {
     return (
       <View style={styles.loadingContainer}>

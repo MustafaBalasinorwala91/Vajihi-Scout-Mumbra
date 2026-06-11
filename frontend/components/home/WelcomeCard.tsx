@@ -1,3 +1,5 @@
+import { wp, hp } from '../../utils/responsive';
+import { rf } from '../../utils/fonts';
 import React from 'react';
 import {
     View,
@@ -45,15 +47,22 @@ export default function WelcomeCard() {
 
 const styles = StyleSheet.create({
     card: {
-        marginHorizontal: 16,
-        marginTop: -30,
-        borderRadius: 40,
-        padding: 12,
+        marginHorizontal: wp('4%'),
+        marginTop: -hp('3%'),
+
+        borderRadius: wp('8%'),
+
+        padding: wp('4%'),
+
+        height: hp('22%'),
 
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        gap: 12,
+        position: 'relative',
+
+        overflow: 'hidden',
+
         shadowColor: '#000',
         shadowOffset: {
             width: 0,
@@ -64,58 +73,58 @@ const styles = StyleSheet.create({
         elevation: 6,
     },
 
+    image: {
+        position: 'absolute',
+        right: 0,
+        top: 0,
+
+        width: wp('100%'),
+        height: '120%',
+    },
+
     left: {
         flex: 1,
-        paddingRight: 120,
+        paddingRight: wp('38%'),
         zIndex: 2,
     },
 
     greeting: {
-        fontSize: 20,
+        fontSize: rf(20),
         color: '#6C4DFF',
         fontWeight: '700',
     },
 
     name: {
-        fontSize: 34,
+        fontSize: rf(28),
         fontWeight: '800',
         color: '#16162E',
-        marginVertical: 5,
+
+        marginVertical: hp('0.5%'),
     },
 
     description: {
         color: '#666',
-        fontSize: 17,
-        lineHeight: 20,
+        fontSize: rf(15),
+        lineHeight: rf(20),
     },
 
     badge: {
         backgroundColor: '#FF6B8A',
+
         alignSelf: 'flex-start',
-        paddingHorizontal: 18,
-        paddingVertical: 8,
-        borderRadius: 20,
-        marginTop: 20,
+
+        paddingHorizontal: wp('4.5%'),
+        paddingVertical: hp('0.8%'),
+
+        borderRadius: wp('5%'),
+
+        marginTop: hp('2%'),
     },
 
     badgeText: {
         color: '#fff',
         fontWeight: '700',
-    },
-
-    image: {
-        position: 'absolute',
-        right: -4,
-        bottom: 10,
-        top: 0,
-
-        width: 435,
-        height: 210,
-
-        opacity: 0.98,
-
-        borderTopRightRadius: 35,
-        borderBottomRightRadius: 40,
+        fontSize: rf(13),
     },
 
 });
