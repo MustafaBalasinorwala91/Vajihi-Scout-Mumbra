@@ -2232,8 +2232,8 @@ async def create_admin():
     await db.notifications.create_index([("user_id", 1)])
     await db.notifications.create_index([("created_at", -1)])
 
-    admin_username = os.environ["ADMIN_USERNAME"]
-    admin_password = os.environ["ADMIN_PASSWORD"]
+    admin_username = os.getenv("ADMIN_USERNAME", "")
+    admin_password = os.getenv("ADMIN_PASSWORD", "")
 
     existing_admin = await db.users.find_one({"username": admin_username})
 
