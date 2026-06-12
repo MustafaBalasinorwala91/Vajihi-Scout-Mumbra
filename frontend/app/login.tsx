@@ -1,6 +1,7 @@
 import { wp, hp } from '../utils/responsive';
 import { rf } from '../utils/fonts';
 import React, { useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   View,
   Text,
@@ -31,6 +32,10 @@ export default function LoginScreen() {
       Alert.alert('Error', 'Please enter ITS_no and password');
       return;
     }
+    console.log(
+      'BACKEND URL:',
+      process.env.EXPO_PUBLIC_BACKEND_URL
+    );
 
     setLoading(true);
     try {
@@ -49,19 +54,62 @@ export default function LoginScreen() {
 
       if (response.ok) {
         const data = await response.json();
+
+        console.log(
+          'LOGIN SUCCESS RESPONSE:',
+          data
+        );
+
+        Alert.alert(
+          'Success',
+          'Login API successful'
+        );
+
         await saveUser(
           data.user,
           data.session_token
         );
 
+        console.log(
+          'USER SAVED'
+        );
+
+        const savedToken =
+          await AsyncStorage.getItem(
+            'session_token'
+          );
+
+        console.log(
+          'TOKEN IN STORAGE:',
+          savedToken
+        );
+
+        Alert.alert(
+          'Token Check',
+          savedToken
+            ? 'Token saved successfully'
+            : 'Token NOT saved'
+        );
+
         router.replace('/(tabs)/home');
+
+        console.log(
+          'ROUTER REPLACE CALLED'
+        );
       } else {
         const error = await response.json();
         Alert.alert('Login Failed', error.detail || 'Invalid username or password');
       }
-    } catch (error) {
-      console.error('Login error:', error);
-      Alert.alert('Error', 'Failed to login. Please try again.');
+    } catch (error: any) {
+      console.log(
+        'LOGIN ERROR:',
+        error
+      );
+
+      Alert.alert(
+        'Login Error',
+        JSON.stringify(error)
+      );
     } finally {
       setLoading(false);
     }
