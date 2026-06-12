@@ -673,7 +673,7 @@ async def logout(
         await db.user_sessions.delete_one({"session_token": token})
 
     # Clear cookie
-    response.delete_cookie(key="session_token", path="/", samesite="none")
+    response.delete_cookie(key="session_token", path="/", samesite="lax")
 
     return {"message": "Logged out successfully"}
 
@@ -1309,7 +1309,6 @@ async def get_attendance_dates(
     attendance_type: str, current_user: User = Depends(get_current_user)
 ):
 
-    # ADMIN ONLY
     if current_user.role == "admin":
 
         records = await db.attendance.find(
@@ -1321,27 +1320,27 @@ async def get_attendance_dates(
             },
         ).to_list(5000)
 
-    grouped = {}
+        grouped = {}
 
-    for record in records:
+        for record in records:
 
-        date = record["date"]
+            date = record["date"]
 
-        if date not in grouped:
-            grouped[date] = {
-                "date": date,
-                "presentCount": 0,
-                "absentCount": 0,
-            }
+            if date not in grouped:
+                grouped[date] = {
+                    "date": date,
+                    "presentCount": 0,
+                    "absentCount": 0,
+                }
 
-        if record["status"] == "present":
-            grouped[date]["presentCount"] += 1
+            if record["status"] == "present":
+                grouped[date]["presentCount"] += 1
 
-        if record["status"] == "absent":
-            grouped[date]["absentCount"] += 1
+            elif record["status"] == "absent":
+                grouped[date]["absentCount"] += 1
 
-    return list(grouped.values())
-    # MEMBERS + ATTENDANCE MANAGERS
+        return list(grouped.values())
+
     records = await db.attendance.find(
         {
             "attendance_type": attendance_type,
@@ -1370,7 +1369,7 @@ async def get_attendance_dates(
         if record["status"] == "present":
             grouped[date]["present"] = True
 
-        if record["status"] == "absent":
+        elif record["status"] == "absent":
             grouped[date]["absent"] = True
 
     return list(grouped.values())
@@ -2226,8 +2225,6 @@ async def create_admin():
 
     await db.attendance.create_index([("user_id", 1), ("date", -1)])
     await db.fees.create_index([("user_id", 1), ("month", 1)], unique=True)
-
-    await cleanup_old_notifications()
 
     await db.notifications.create_index([("user_id", 1)])
     await db.notifications.create_index([("created_at", -1)])

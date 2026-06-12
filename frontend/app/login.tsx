@@ -1,6 +1,7 @@
 import { wp, hp } from '../utils/responsive';
 import { rf } from '../utils/fonts';
 import React, { useState } from 'react';
+import { registerForPushNotifications } from '../services/notificationService';
 import {
   View,
   Text,
@@ -53,6 +54,25 @@ export default function LoginScreen() {
           data.user,
           data.session_token
         );
+        const expoToken =
+          await registerForPushNotifications();
+
+        if (expoToken) {
+
+          await fetch(
+            `${BACKEND_URL}/api/notifications/register-token`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${data.session_token}`,
+              },
+              body: JSON.stringify({
+                expo_push_token: expoToken,
+              }),
+            }
+          );
+        }
 
         router.replace('/(tabs)/home');
       } else {
