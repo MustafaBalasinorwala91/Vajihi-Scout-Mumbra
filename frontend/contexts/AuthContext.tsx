@@ -83,9 +83,6 @@ export function AuthProvider({
     userData: User,
     token: string
   ) => {
-
-    console.log('SAVE USER START');
-
     await AsyncStorage.setItem(
       'user',
       JSON.stringify(userData)
@@ -93,11 +90,6 @@ export function AuthProvider({
 
     await AsyncStorage.setItem(
       'session_token',
-      token
-    );
-
-    console.log(
-      'SAVE USER COMPLETE',
       token
     );
 
@@ -122,7 +114,6 @@ export function AuthProvider({
   };
 
   const checkAuth = useCallback(async () => {
-
     try {
       const BACKEND_URL =
         process.env.EXPO_PUBLIC_BACKEND_URL;
@@ -135,21 +126,10 @@ export function AuthProvider({
         setUser(JSON.parse(storedUser));
       }
 
-
-      console.log('CHECK AUTH START');
-
       const token =
         await AsyncStorage.getItem(
           'session_token'
         );
-
-      console.log('TOKEN FOUND:', token);
-
-      console.log(
-        'BACKEND URL:',
-        BACKEND_URL
-      );
-
 
       if (!token) {
         setLoading(false);
@@ -167,19 +147,10 @@ export function AuthProvider({
           },
         }
       );
-      console.log(
-        'AUTH RESPONSE STATUS:',
-        response.status
-      );
 
       if (response.ok) {
         const userData =
           await response.json();
-
-        console.log(
-          'AUTH SUCCESS:',
-          userData
-        );
 
         setUser(userData);
 
@@ -188,10 +159,6 @@ export function AuthProvider({
           JSON.stringify(userData)
         );
       } else {
-        console.log(
-          'AUTH FAILED - REMOVING TOKEN'
-        );
-
         await AsyncStorage.removeItem(
           'session_token'
         );
@@ -201,7 +168,6 @@ export function AuthProvider({
         );
 
         setUser(null);
-
       }
     } catch (error) {
       console.error(

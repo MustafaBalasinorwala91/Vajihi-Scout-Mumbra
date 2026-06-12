@@ -17,15 +17,31 @@ export default function SplashScreen() {
   const { user, loading, isAuthenticated } = useAuth();
 
   useEffect(() => {
+
+    console.log('SPLASH');
+
+    console.log('loading:', loading);
+
+    console.log(
+      'isAuthenticated:',
+      isAuthenticated
+    );
+
+    console.log('user:', user);
+
     if (!loading) {
       if (isAuthenticated && user) {
+        console.log('GO HOME');
+
         router.replace('/(tabs)/home');
       } else {
+        console.log('GO LOGIN');
+
         router.replace('/login');
       }
     }
-  }, [loading, isAuthenticated, user, router]);
 
+  }, [loading, isAuthenticated, user]);
   return (
     <SafeAreaView style={styles.container}>
       <Image
