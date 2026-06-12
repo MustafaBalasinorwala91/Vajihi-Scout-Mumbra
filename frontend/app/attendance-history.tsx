@@ -367,10 +367,10 @@ const styles = StyleSheet.create({
 
     headerTextWrapper: {
         flex: 1,
+        marginLeft: 16,
     },
-
     headerTitle: {
-        fontSize: 30,
+        fontSize: 28,
         fontWeight: '800',
         color: '#fff',
     },
@@ -382,10 +382,10 @@ const styles = StyleSheet.create({
     },
 
     backButton: {
-        width: 44,
-        height: 44,
+        width: 48,
+        height: 48,
 
-        borderRadius: 14,
+        borderRadius: 16,
 
         backgroundColor: 'rgba(255,255,255,0.18)',
 
@@ -487,10 +487,10 @@ const styles = StyleSheet.create({
         fontWeight: '700',
     },
     exportButton: {
-        width: 44,
-        height: 44,
+        width: 48,
+        height: 48,
 
-        borderRadius: 14,
+        borderRadius: 16,
 
         backgroundColor: 'rgba(255,255,255,0.18)',
 

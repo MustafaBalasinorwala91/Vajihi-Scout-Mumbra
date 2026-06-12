@@ -331,6 +331,11 @@ async def send_push_notification(
     try:
         requests.post(
             "https://exp.host/--/api/v2/push/send",
+            headers={
+                "Accept": "application/json",
+                "Accept-Encoding": "gzip, deflate",
+                "Content-Type": "application/json",
+            },
             json={
                 "to": expo_push_token,
                 "title": title,

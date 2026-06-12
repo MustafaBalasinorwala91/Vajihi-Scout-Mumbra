@@ -28,6 +28,8 @@ export async function registerForPushNotifications() {
         await Notifications.getExpoPushTokenAsync();
 
     const token = tokenData.data;
+    console.log("EXPO TOKEN:", token);
+    return token;
 
     if (Platform.OS === "android") {
         await Notifications.setNotificationChannelAsync(
