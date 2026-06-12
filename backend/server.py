@@ -2281,7 +2281,10 @@ app.add_middleware(
         "http://localhost:19006",
         "http://192.168.0.110:8081",
         "exp://192.168.0.110:8081",
+        # Render backend
         "https://vajihi-scout-mumbra.onrender.com",
+        # Vercel frontend
+        "https://vajihi-scout-mumbra.vercel.app",
     ],
     allow_credentials=True,
     allow_methods=["*"],
