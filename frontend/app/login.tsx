@@ -50,34 +50,58 @@ export default function LoginScreen() {
 
       if (response.ok) {
         const data = await response.json();
+
+        // Save user locally
         await saveUser(
           data.user,
           data.session_token
         );
-        const expoToken =
-          await registerForPushNotifications();
 
-        if (expoToken) {
-
-          await fetch(
-            `${BACKEND_URL}/api/notifications/register-token`,
-            {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${data.session_token}`,
-              },
-              body: JSON.stringify({
-                expo_push_token: expoToken,
-              }),
-            }
-          );
-        }
-
+        // Navigate immediately
         router.replace('/(tabs)/home');
+
+        // Register push token in background
+        void (async () => {
+          try {
+            const expoToken = await registerForPushNotifications();
+
+            if (expoToken) {
+              const registerResponse = await fetch(
+                `${BACKEND_URL}/api/notifications/register-token`,
+                {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${data.session_token}`,
+                  },
+                  body: JSON.stringify({
+                    expo_push_token: expoToken,
+                  }),
+                }
+              );
+
+              if (!registerResponse.ok) {
+                console.log(
+                  'Failed to register push token:',
+                  await registerResponse.text()
+                );
+              }
+            }
+          } catch (error) {
+            console.log(
+              'Push notification registration failed:',
+              error
+            );
+          }
+        })();
+
       } else {
         const error = await response.json();
-        Alert.alert('Login Failed', error.detail || 'Invalid username or password');
+
+        Alert.alert(
+          'Login Failed',
+          error.detail || 'Invalid username or password'
+        );
       }
     } catch (error) {
       console.error('Login error:', error);

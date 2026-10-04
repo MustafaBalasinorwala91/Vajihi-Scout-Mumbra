@@ -22,7 +22,28 @@ import NotificationBell from '../../components/common/NotificationBell';
 import AttendanceTab from '../../components/attendance/AttendanceTab';
 import AttendanceCard from '../../components/attendance/AttendanceCard';
 import CalendarDay from '../../components/attendance/CalendarDay';
+const EVENT_OPTIONS = {
+  practice: [
+    'Normal Practice',
+    'Full-Day Practice',
+    'Composing Practice',
+    'Specific Instrument Practice',
+  ],
 
+  khidmat: [
+    'Jaman Khidmat',
+    'Salwat Takseem',
+    'Flow Management',
+  ],
+
+  duties: [
+    'Local Duty',
+    'Milad Duty',
+    'Ziyafat Duty',
+    '15th August',
+    '26th January',
+  ],
+};
 export default function AttendanceScreen() {
 
   const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -37,28 +58,7 @@ export default function AttendanceScreen() {
     useState('practice');
   const [eventName, setEventName] =
     useState('Normal Practice');
-  const EVENT_OPTIONS = {
-    practice: [
-      'Normal Practice',
-      'Full-Day Practice',
-      'Composing Practice',
-      'Specific Instrument Practice',
-    ],
 
-    khidmat: [
-      'Jaman Khidmat',
-      'Salwat Takseem',
-      'Flow Management',
-    ],
-
-    duties: [
-      'Local Duty',
-      'Milad Duty',
-      'Ziyafat Duty',
-      '15th August',
-      '26th January',
-    ],
-  };
   useEffect(() => {
     setEventName(
       EVENT_OPTIONS[

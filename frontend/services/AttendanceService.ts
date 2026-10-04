@@ -4,6 +4,7 @@ const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
 export const saveAttendance = async (
     attendanceType: string,
+    eventName: string,
     selectedDate: string,
     records: any[]
 ) => {
@@ -12,7 +13,7 @@ export const saveAttendance = async (
         if (!token) return;
 
         const response = await fetch(
-            `${API_URL}/api/attendance/save`,
+            `${API_URL}/api/attendance/bulk`,
             {
                 method: 'POST',
                 headers: {
@@ -21,25 +22,34 @@ export const saveAttendance = async (
                 },
                 body: JSON.stringify({
                     attendance_type: attendanceType,
-                    selected_date: selectedDate,
+                    event_name: eventName,
+                    date: selectedDate,
                     records,
                 }),
             }
         );
 
-        return await response.json();
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.detail || "Something went wrong");
+        }
+
+        return data;
     } catch (error) {
         console.log('SAVE ATTENDANCE ERROR:', error);
     }
 };
 
-export const getAttendanceHistory = async () => {
+export const getAttendanceHistory = async (
+    attendanceType: string
+) => {
     try {
         const token = await AsyncStorage.getItem('session_token');
         if (!token) return;
 
         const response = await fetch(
-            `${API_URL}/api/attendance/history`,
+            `${API_URL}/api/attendance/history/${attendanceType}`,
             {
                 headers: {
                     Authorization: `Bearer ${token}`,
@@ -47,8 +57,105 @@ export const getAttendanceHistory = async () => {
             }
         );
 
-        return await response.json();
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.detail || "Something went wrong");
+        }
+
+        return data;
     } catch (error) {
         console.error(error);
+    }
+};
+
+export const getAttendanceHistoryDetails = async (
+    sessionId: string
+) => {
+    try {
+        const token = await AsyncStorage.getItem('session_token');
+        if (!token) return;
+
+        const response = await fetch(
+            `${API_URL}/api/attendance/history-details/${sessionId}`,
+            {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.detail || "Something went wrong");
+        }
+
+        return data;
+    } catch (error) {
+        console.log('UPDATE ATTENDANCE ERROR:', error);
+    }
+};
+
+export const updateAttendanceSession = async (
+    sessionId: string,
+    records: any[]
+) => {
+    try {
+        const token = await AsyncStorage.getItem('session_token');
+        if (!token) return;
+
+        const response = await fetch(
+            `${API_URL}/api/attendance/session/${sessionId}`,
+            {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                    records,
+                }),
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.detail || "Something went wrong");
+        }
+
+        return data;
+    } catch (error) {
+        console.log('UPDATE ATTENDANCE ERROR:', error);
+    }
+};
+
+export const deleteAttendanceSession = async (
+    sessionId: string
+) => {
+    try {
+        const token = await AsyncStorage.getItem('session_token');
+        if (!token) return;
+
+        const response = await fetch(
+            `${API_URL}/api/attendance/session/${sessionId}`,
+            {
+                method: 'DELETE',
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.detail || "Something went wrong");
+        }
+
+        return data;
+    } catch (error) {
+        console.log('UPDATE ATTENDANCE ERROR:', error);
     }
 };

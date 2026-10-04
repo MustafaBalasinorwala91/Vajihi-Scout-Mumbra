@@ -11,7 +11,6 @@ import HeaderSection from '../../components/home/HeaderSection';
 import WelcomeCard from '../../components/home/WelcomeCard';
 import SummaryCard from '../../components/home/SummaryCard';
 import QuickActionCard from '../../components/home/QuickActionCard';
-import NotificationBell from '../../components/common/NotificationBell';
 
 type ActionItem = {
   id: number;
@@ -101,15 +100,6 @@ export default function HomeScreen() {
 
     {
       id: 4,
-      title: 'Manage Uniforms',
-      description: 'Add, update & track uniforms',
-      icon: 'shirt',
-      colors: ['#B13DFF', '#40107A'] as [string, string],
-      route: '/uniforms',
-    },
-
-    {
-      id: 5,
       title: 'Manage Members',
       description: 'Add, update & manage members',
       icon: 'people',
@@ -118,12 +108,21 @@ export default function HomeScreen() {
     },
 
     {
-      id: 6,
+      id: 5,
       title: 'Assign Tags',
       description: 'Assign & manage member tags',
       icon: 'pricetag',
       colors: ['#8E2BFF', '#2B145A'] as [string, string],
       route: '/manage-tags',
+    },
+
+    {
+      id: 6,
+      title: 'About Us',
+      description: 'Learn more about Vajihi Scout Mumbra',
+      icon: 'information-circle',
+      colors: ['#8E2BFF', '#2B145A'] as [string, string],
+      route: '/about-band',
     },
   ];
 

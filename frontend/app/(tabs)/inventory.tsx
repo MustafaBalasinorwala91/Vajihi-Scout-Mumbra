@@ -1,850 +1,248 @@
 import React from 'react';
-import { useState } from 'react';
-import { RefreshControl } from 'react-native';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  TextInput,
-  Image,
 } from 'react-native';
-import NotificationBell from '../../components/common/NotificationBell';
+import { useRouter } from 'expo-router';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-
-import {
-  Ionicons,
-  MaterialCommunityIcons,
-  FontAwesome5,
-} from '@expo/vector-icons';
+import NotificationBell from '../../components/common/NotificationBell';
 
 export default function InventoryScreen() {
-  const [refreshing, setRefreshing] = useState(false);
-  const onRefresh = async () => {
-    setRefreshing(true);
+  const router = useRouter();
 
-    // later:
-    // await loadInventory();
+  const categories = [
+    {
+      id: 'uniforms',
+      title: 'Uniforms',
+      subtitle: 'View and manage uniform catalog',
+      icon: 'shirt-outline' as const,
+      iconLibrary: 'ionicons' as const,
+      iconBackground: '#EEE7FF',
+      iconColor: '#6C4DFF',
+      accent: '#6C4DFF',
+    },
+    {
+      id: 'instruments',
+      title: 'Instruments',
+      subtitle: 'View and manage instruments',
+      icon: 'musical-notes-outline' as const,
+      iconLibrary: 'ionicons' as const,
+      iconBackground: '#FFE8F0',
+      iconColor: '#D9467A',
+      accent: '#D9467A',
+    },
+    {
+      id: 'others',
+      title: 'Others',
+      subtitle: 'View and manage other inventory items',
+      icon: 'cube-outline' as const,
+      iconLibrary: 'material' as const,
+      iconBackground: '#E7F1FF',
+      iconColor: '#2878D8',
+      accent: '#2878D8',
+    },
+  ];
 
-    setRefreshing(false);
+  const handleCategoryPress = (category: string) => {
+    if (category === 'uniforms') {
+      router.push('/inventory/uniforms');
+      return;
+    }
+
+    if (category === 'instruments') {
+      router.push('/inventory/instruments');
+      return;
+    }
+
+    if (category === 'others') {
+      router.push('/inventory/others');
+    }
   };
+
   return (
     <View style={styles.container}>
-
       <ScrollView
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={['#5B3DF5']}
-            tintColor="#5B3DF5"
-          />
-        }
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 120 }}
+        contentContainerStyle={styles.scrollContent}
       >
-
         {/* HEADER */}
         <LinearGradient
           colors={['#2B145A', '#5B3DF5']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
           style={styles.header}
         >
-
           <View style={styles.headerTop}>
-
-            <View>
-              <Text style={styles.headerTitle}>
-                Inventory
-              </Text>
-
+            <View style={styles.headerTextContainer}>
+              <Text style={styles.headerTitle}>Inventory</Text>
               <Text style={styles.headerSubtitle}>
-                Manage instruments and band items
+                Organisational items & assignments
               </Text>
             </View>
+
             <NotificationBell />
           </View>
-
-          {/* MANAGE INVENTORY CARD */}
-          <TouchableOpacity activeOpacity={0.9}>
-
-            <LinearGradient
-              colors={['#7B4DFF', '#4B1DFF']}
-              style={styles.manageCard}
-            >
-
-              <View style={styles.manageLeft}>
-
-                <View style={styles.manageIcon}>
-                  <Ionicons
-                    name="add"
-                    size={30}
-                    color="#5B3DF5"
-                  />
-                </View>
-
-                <View>
-                  <Text style={styles.manageTitle}>
-                    Manage Inventory
-                  </Text>
-
-                  <Text style={styles.manageSubtitle}>
-                    Add new instrument or item
-                  </Text>
-                </View>
-
-              </View>
-
-              <Ionicons
-                name="chevron-forward"
-                size={30}
-                color="#fff"
-              />
-
-            </LinearGradient>
-
-          </TouchableOpacity>
-
         </LinearGradient>
 
-        {/* SUMMARY STATS */}
-        <View style={styles.statsContainer}>
-
-          <View style={styles.statCard}>
-            <View
-              style={[
-                styles.statIcon,
-                { backgroundColor: '#EFE8FF' },
-              ]}
-            >
-              <MaterialCommunityIcons
-                name="cube-outline"
-                size={24}
-                color="#6C4DFF"
-              />
-            </View>
-
-            <Text style={styles.statValue}>
-              12
-            </Text>
-
-            <Text style={styles.statLabel}>
-              Total Items
-            </Text>
-          </View>
-
-          <View style={styles.statCard}>
-            <View
-              style={[
-                styles.statIcon,
-                { backgroundColor: '#E8FFF0' },
-              ]}
-            >
-              <Ionicons
-                name="checkmark-circle-outline"
-                size={24}
-                color="#35C76F"
-              />
-            </View>
-
-            <Text style={styles.statValue}>
-              8
-            </Text>
-
-            <Text style={styles.statLabel}>
-              Good Condition
-            </Text>
-          </View>
-
-          <View style={styles.statCard}>
-            <View
-              style={[
-                styles.statIcon,
-                { backgroundColor: '#FFF3E2' },
-              ]}
-            >
-              <Ionicons
-                name="build-outline"
-                size={24}
-                color="#FF9800"
-              />
-            </View>
-
-            <Text style={styles.statValue}>
-              2
-            </Text>
-
-            <Text style={styles.statLabel}>
-              Under Repair
-            </Text>
-          </View>
-
-          <View style={styles.statCard}>
-            <View
-              style={[
-                styles.statIcon,
-                { backgroundColor: '#FFEAEA' },
-              ]}
-            >
-              <Ionicons
-                name="alert-circle-outline"
-                size={24}
-                color="#FF4D4F"
-              />
-            </View>
-
-            <Text style={styles.statValue}>
-              2
-            </Text>
-
-            <Text style={styles.statLabel}>
-              Needs Attention
-            </Text>
-          </View>
-
-        </View>
-
-        {/* SEARCH */}
-        <View style={styles.searchContainer}>
-
-          <View style={styles.searchBar}>
-            <Ionicons
-              name="search"
-              size={22}
-              color="#999"
-            />
-
-            <TextInput
-              placeholder="Search inventory..."
-              placeholderTextColor="#999"
-              style={styles.searchInput}
-            />
-          </View>
-
-          <TouchableOpacity style={styles.filterButton}>
-            <Ionicons
-              name="filter"
-              size={22}
-              color="#6C4DFF"
-            />
-
-            <Text style={styles.filterText}>
-              Filter
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.sortButton}>
-            <Ionicons
-              name="swap-vertical"
-              size={22}
-              color="#6C4DFF"
-            />
-          </TouchableOpacity>
-
-        </View>
-
-        {/* CATEGORY CHIPS */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.categoryContainer}
-        >
-
-          <TouchableOpacity style={styles.activeChip}>
-            <Ionicons
-              name="grid"
-              size={16}
-              color="#fff"
-            />
-
-            <Text style={styles.activeChipText}>
-              All Items
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.chip}>
-            <Ionicons
-              name="musical-notes"
-              size={16}
-              color="#222"
-            />
-
-            <Text style={styles.chipText}>
-              Instruments
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.chip}>
-            <Ionicons
-              name="headset"
-              size={16}
-              color="#222"
-            />
-
-            <Text style={styles.chipText}>
-              Accessories
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.chip}>
-            <FontAwesome5
-              name="tshirt"
-              size={14}
-              color="#222"
-            />
-
-            <Text style={styles.chipText}>
-              Uniform Items
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.chip}>
-            <Ionicons
-              name="briefcase-outline"
-              size={16}
-              color="#222"
-            />
-
-            <Text style={styles.chipText}>
-              Others
-            </Text>
-          </TouchableOpacity>
-
-        </ScrollView>
-
-        {/* INVENTORY ITEMS */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>
-            Inventory Items
+        {/* CATEGORIES */}
+        <View style={styles.categoriesSection}>
+          <Text style={styles.sectionTitle}>Categories</Text>
+          <Text style={styles.sectionSubtitle}>
+            Choose a category to manage its catalogue, stock and assignments.
           </Text>
 
-          <TouchableOpacity>
-            <Text style={styles.viewAll}>
-              View All
-            </Text>
-          </TouchableOpacity>
-        </View>
+          {categories.map((category) => (
+            <TouchableOpacity
+              key={category.id}
+              activeOpacity={0.9}
+              style={styles.categoryCard}
+              onPress={() => handleCategoryPress(category.id)}
+            >
+              <View style={styles.categoryTop}>
+                <View
+                  style={[
+                    styles.categoryIcon,
+                    { backgroundColor: category.iconBackground },
+                  ]}
+                >
+                  {category.iconLibrary === 'material' ? (
+                    <MaterialCommunityIcons
+                      name={category.icon as any}
+                      size={34}
+                      color={category.iconColor}
+                    />
+                  ) : (
+                    <Ionicons
+                      name={category.icon as any}
+                      size={34}
+                      color={category.iconColor}
+                    />
+                  )}
+                </View>
 
-        {/* ITEM CARD */}
-        <TouchableOpacity
-          style={styles.itemCard}
-          activeOpacity={0.9}
-        >
+                <View style={styles.categoryInfo}>
+                  <Text style={styles.categoryTitle}>{category.title}</Text>
+                  <Text style={styles.categorySubtitle}>
+                    {category.subtitle}
+                  </Text>
+                </View>
 
-          <View style={styles.itemImageContainer}>
-            <Image
-              source={{
-                uri: 'https://cdn-icons-png.flaticon.com/512/3659/3659898.png',
-              }}
-              style={styles.itemImage}
-            />
-          </View>
-
-          <View style={styles.itemDetails}>
-
-            <Text style={styles.itemTitle}
-              numberOfLines={1}>
-              Drum
-            </Text>
-
-            <Text style={styles.itemCategory}
-              numberOfLines={1}>
-              Percussion Instrument
-            </Text>
-
-            <View style={styles.holderRow}>
-              <Ionicons
-                name="person-outline"
-                size={16}
-                color="#6C4DFF"
-              />
-
-              <Text style={styles.holderText}
-                numberOfLines={1}>
-                Holder: Mustu
-              </Text>
-            </View>
-
-            <View style={styles.bottomRow}>
-
-              <View style={styles.dateRow}>
-                <Ionicons
-                  name="calendar-outline"
-                  size={16}
-                  color="#888"
-                />
-
-                <Text style={styles.dateText}
-                  numberOfLines={1}
-                  adjustsFontSizeToFit>
-                  Added: 12 Apr 2025
-                </Text>
+                <View
+                  style={[
+                    styles.arrowContainer,
+                    { backgroundColor: category.iconBackground },
+                  ]}
+                >
+                  <Ionicons
+                    name="chevron-forward"
+                    size={22}
+                    color={category.accent}
+                  />
+                </View>
               </View>
 
-            </View>
+              <View
+                style={[
+                  styles.categoryFooter,
+                  { borderTopColor: `${category.accent}18` },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.categoryFooterText,
+                    { color: category.accent },
+                  ]}
+                >
+                  Manage {category.title}
+                </Text>
+                <Ionicons
+                  name="arrow-forward"
+                  size={17}
+                  color={category.accent}
+                />
+              </View>
+            </TouchableOpacity>
+          ))}
+        </View>
 
-          </View>
-
-          <View style={styles.rightSection}>
-
-            <View style={styles.goodBadge}>
-              <Text style={styles.goodText}>
-                GOOD
-              </Text>
-            </View>
-
-            <View style={styles.qtyBadge}>
-              <Text style={styles.qtyText}>
-                x2
-              </Text>
-            </View>
-
-            <Ionicons
-              name="chevron-forward"
-              size={22}
-              color="#6C4DFF"
-              style={{ marginTop: 18 }}
-            />
-
-          </View>
-
-        </TouchableOpacity>
-
-        {/* SECOND ITEM */}
-        <TouchableOpacity
-          style={styles.itemCard}
-          activeOpacity={0.9}
-        >
-
-          <View style={styles.itemImageContainer}>
-            <Image
-              source={{
-                uri: 'https://cdn-icons-png.flaticon.com/512/2972/2972185.png',
-              }}
-              style={styles.itemImage}
-            />
-          </View>
-
-          <View style={styles.itemDetails}>
-
-            <Text style={styles.itemTitle}>
-              Trumpet
-            </Text>
-
-            <Text style={styles.itemCategory}>
-              Brass Instrument
-            </Text>
-
-            <View style={styles.holderRow}>
-              <Ionicons
-                name="person-outline"
-                size={16}
-                color="#6C4DFF"
-              />
-
-              <Text style={styles.holderText}>
-                Holder: Rehan
-              </Text>
-            </View>
-
-            <View style={styles.dateRow}>
-              <Ionicons
-                name="calendar-outline"
-                size={16}
-                color="#888"
-              />
-
-              <Text style={styles.dateText}>
-                Added: 10 Apr 2025
-              </Text>
-            </View>
-
-          </View>
-
-          <View style={styles.rightSection}>
-
-            <View style={styles.goodBadge}>
-              <Text style={styles.goodText}>
-                GOOD
-              </Text>
-            </View>
-
-            <View style={styles.qtyBadge}>
-              <Text style={styles.qtyText}>
-                x1
-              </Text>
-            </View>
-
-            <Ionicons
-              name="chevron-forward"
-              size={22}
-              color="#6C4DFF"
-              style={{ marginTop: 18 }}
-            />
-
-          </View>
-
-        </TouchableOpacity>
-
-        {/* THIRD ITEM */}
-        <TouchableOpacity
-          style={styles.itemCard}
-          activeOpacity={0.9}
-        >
-
-          <View style={styles.itemImageContainer}>
-            <Image
-              source={{
-                uri: 'https://cdn-icons-png.flaticon.com/512/5234/5234421.png',
-              }}
-              style={styles.itemImage}
-            />
-          </View>
-
-          <View style={styles.itemDetails}>
-
-            <Text style={styles.itemTitle}>
-              Drum Sticks
-            </Text>
-
-            <Text style={styles.itemCategory}>
-              Accessory
-            </Text>
-
-            <View style={styles.holderRow}>
-              <Ionicons
-                name="person-outline"
-                size={16}
-                color="#6C4DFF"
-              />
-
-              <Text style={styles.holderText}>
-                Holder: N/A
-              </Text>
-            </View>
-
-            <View style={styles.dateRow}>
-              <Ionicons
-                name="calendar-outline"
-                size={16}
-                color="#888"
-              />
-
-              <Text style={styles.dateText}>
-                Added: 08 Apr 2025
-              </Text>
-            </View>
-
-          </View>
-
-          <View style={styles.rightSection}>
-
-            <View style={styles.repairBadge}>
-              <Text style={styles.repairText}>
-                UNDER REPAIR
-              </Text>
-            </View>
-
-            <View style={styles.orangeQtyBadge}>
-              <Text style={styles.orangeQtyText}>
-                x3
-              </Text>
-            </View>
-
-            <Ionicons
-              name="chevron-forward"
-              size={22}
-              color="#6C4DFF"
-              style={{ marginTop: 18 }}
-            />
-
-          </View>
-
-        </TouchableOpacity>
-
+        <View style={styles.bottomSpace} />
       </ScrollView>
-
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-
   container: {
     flex: 1,
-    backgroundColor: '#F6F7FB',
+    backgroundColor: '#F6F4FF',
+  },
+
+  scrollContent: {
+    paddingBottom: 120,
   },
 
   header: {
-    paddingTop: 70,
+    paddingTop: 68,
     paddingHorizontal: 20,
-    paddingBottom: 140,
-    borderBottomLeftRadius: 40,
-    borderBottomRightRadius: 40,
+    paddingBottom: 30,
+    borderBottomLeftRadius: 38,
+    borderBottomRightRadius: 38,
     overflow: 'hidden',
-    position: 'relative',
   },
 
   headerTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+  },
+
+  headerTextContainer: {
+    flex: 1,
+    paddingRight: 14,
   },
 
   headerTitle: {
     color: '#fff',
-    fontSize: 40,
+    fontSize: 38,
     fontWeight: '800',
+    letterSpacing: -0.5,
   },
 
   headerSubtitle: {
     color: '#E9DDFF',
-    fontSize: 17,
-    marginTop: 10,
+    fontSize: 16,
+    marginTop: 7,
+    lineHeight: 22,
   },
 
-  bellButton: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  notificationDot: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#FF4D4F',
-  },
-
-  manageCard: {
+  categoriesSection: {
     marginTop: 28,
-    borderRadius: 30,
-    padding: 24,
-
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-
-    shadowColor: '#6C4DFF',
-    shadowOffset: {
-      width: 0,
-      height: 10,
-    },
-    shadowOpacity: 0.35,
-    shadowRadius: 18,
-    elevation: 10,
-  },
-
-  manageLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-
-  manageIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#fff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 18,
-  },
-
-  manageTitle: {
-    color: '#fff',
-    fontSize: 20,
-    fontWeight: '800',
-  },
-
-  manageSubtitle: {
-    color: '#E9DDFF',
-    marginTop: 6,
-    fontSize: 15,
-  },
-
-  statsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
     paddingHorizontal: 20,
-    marginTop: -80,
-  },
-
-  statCard: {
-    width: '48%',
-    backgroundColor: '#fff',
-    borderRadius: 28,
-    paddingVertical: 24,
-    alignItems: 'center',
-    marginBottom: 16,
-
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 5,
-    },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-
-  statIcon: {
-    width: 58,
-    height: 58,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 14,
-  },
-
-  statValue: {
-    fontSize: 34,
-    fontWeight: '800',
-    color: '#16162E',
-  },
-
-  statLabel: {
-    marginTop: 6,
-    fontSize: 15,
-    color: '#666',
-    textAlign: 'center',
-  },
-
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    marginTop: 8,
-  },
-
-  searchBar: {
-    flex: 1,
-    height: 58,
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    paddingHorizontal: 18,
-    flexDirection: 'row',
-    alignItems: 'center',
-
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-
-  searchInput: {
-    flex: 1,
-    marginLeft: 10,
-    color: '#111',
-  },
-
-  filterButton: {
-    height: 58,
-    paddingHorizontal: 18,
-    borderRadius: 18,
-    backgroundColor: '#F5EDFF',
-    marginLeft: 10,
-
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  filterText: {
-    marginLeft: 6,
-    color: '#6C4DFF',
-    fontWeight: '700',
-  },
-
-  sortButton: {
-    width: 58,
-    height: 58,
-    borderRadius: 18,
-    backgroundColor: '#F5EDFF',
-    marginLeft: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  categoryContainer: {
-    paddingHorizontal: 20,
-    marginTop: 18,
-    paddingBottom: 8,
-  },
-
-  activeChip: {
-    backgroundColor: '#5B3DF5',
-    paddingHorizontal: 20,
-    height: 48,
-    borderRadius: 24,
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-
-  activeChipText: {
-    color: '#fff',
-    fontWeight: '700',
-    marginLeft: 8,
-  },
-
-  chip: {
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#ECECEC',
-    paddingHorizontal: 18,
-    height: 48,
-    borderRadius: 24,
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-
-  chipText: {
-    marginLeft: 8,
-    color: '#222',
-    fontWeight: '600',
-  },
-
-  sectionHeader: {
-    marginTop: 24,
-    paddingHorizontal: 20,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
   },
 
   sectionTitle: {
-    fontSize: 28,
+    fontSize: 25,
     fontWeight: '800',
     color: '#16162E',
   },
 
-  viewAll: {
-    color: '#5B3DF5',
-    fontWeight: '700',
-    fontSize: 16,
+  sectionSubtitle: {
+    fontSize: 13.5,
+    color: '#777',
+    lineHeight: 20,
+    marginTop: 5,
+    marginBottom: 16,
   },
 
-  itemCard: {
+  categoryCard: {
     backgroundColor: '#fff',
-    marginHorizontal: 20,
-    marginTop: 18,
-    borderRadius: 28,
+    borderRadius: 24,
     padding: 16,
-
-    flexDirection: 'row',
-
+    marginBottom: 16,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -852,129 +250,65 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.06,
     shadowRadius: 8,
-    elevation: 4,
+    elevation: 3,
   },
 
-  itemImageContainer: {
-    width: 90,
-    height: 90,
-    borderRadius: 22,
-    backgroundColor: '#F5EDFF',
+  categoryTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 82,
+  },
+
+  categoryIcon: {
+    width: 70,
+    height: 70,
+    borderRadius: 21,
     justifyContent: 'center',
     alignItems: 'center',
+    marginRight: 15,
   },
 
-  itemImage: {
-    width: 58,
-    height: 58,
-    resizeMode: 'contain',
-  },
-
-  itemDetails: {
+  categoryInfo: {
     flex: 1,
-    marginLeft: 16,
-    justifyContent: 'center',
-    minWidth: 0,
+    paddingRight: 10,
   },
 
-  itemTitle: {
-    fontSize: 20,
+  categoryTitle: {
+    fontSize: 21,
     fontWeight: '800',
     color: '#16162E',
   },
 
-  itemCategory: {
+  categorySubtitle: {
+    fontSize: 13.5,
     color: '#777',
-    marginTop: 4,
-    fontSize: 15,
+    marginTop: 5,
+    lineHeight: 19,
   },
 
-  holderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 10,
-  },
-
-  bottomRow: {
-    marginTop: 6,
-  },
-
-  holderText: {
-    marginLeft: 6,
-    color: '#555',
-    fontSize: 15,
-  },
-
-  dateRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 12,
-  },
-
-  dateText: {
-    marginLeft: 6,
-    color: '#777',
-    fontSize: 14,
-  },
-
-  rightSection: {
-    width: 95,
-    alignItems: 'center',
+  arrowContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
     justifyContent: 'center',
+    alignItems: 'center',
   },
 
-  goodBadge: {
-    backgroundColor: '#E8FFF0',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 14,
+  categoryFooter: {
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
 
-  goodText: {
-    color: '#35C76F',
-    fontWeight: '800',
+  categoryFooterText: {
     fontSize: 13,
-  },
-
-  repairBadge: {
-    backgroundColor: '#FFF3E2',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 14,
-  },
-
-  repairText: {
-    color: '#FF9800',
-    fontWeight: '800',
-    fontSize: 12,
-  },
-
-  qtyBadge: {
-    borderWidth: 1.5,
-    borderColor: '#35C76F',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    marginTop: 12,
-  },
-
-  qtyText: {
-    color: '#35C76F',
     fontWeight: '800',
   },
 
-  orangeQtyBadge: {
-    borderWidth: 1.5,
-    borderColor: '#FF9800',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    marginTop: 12,
+  bottomSpace: {
+    height: 40,
   },
-
-  orangeQtyText: {
-    color: '#FF9800',
-    fontWeight: '800',
-  },
-
 });

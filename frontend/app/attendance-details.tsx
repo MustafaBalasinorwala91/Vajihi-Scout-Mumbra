@@ -28,8 +28,12 @@ export default function AttendanceDetailsScreen() {
     const router = useRouter();
     const { user } = useAuth();
 
-    const { type, date, event_name } =
-        useLocalSearchParams();
+    const {
+        session_id,
+        type,
+        date,
+        event_name,
+    } = useLocalSearchParams();
     const canManageAttendance =
         user?.role === 'admin' ||
         user?.permissions?.attendance;
@@ -64,9 +68,7 @@ export default function AttendanceDetailsScreen() {
             if (!token) return;
 
             const response = await fetch(
-                `${process.env.EXPO_PUBLIC_BACKEND_URL}/api/attendance/history-details/${type}/${date}?event_name=${encodeURIComponent(
-                    String(event_name || '')
-                )}`,
+                `${process.env.EXPO_PUBLIC_BACKEND_URL}/api/attendance/history-details/${session_id}`,
                 {
                     headers: {
                         Authorization: `Bearer ${token}`,
@@ -74,14 +76,17 @@ export default function AttendanceDetailsScreen() {
                 }
             );
 
-            const data =
-                await response.json();
+            const data = await response.json();
 
-            if (Array.isArray(data)) {
-                setRecords(data);
-            } else {
-                setRecords([]);
+            if (!response.ok) {
+                Alert.alert(
+                    'Error',
+                    data.detail || 'Failed to load attendance'
+                );
+                return;
             }
+
+            setRecords(data);
 
         } catch (error) {
 
@@ -127,9 +132,7 @@ export default function AttendanceDetailsScreen() {
                             if (!token) return;
 
                             const response = await fetch(
-                                `${process.env.EXPO_PUBLIC_BACKEND_URL}/api/attendance/session/${type}/${date}?event_name=${encodeURIComponent(
-                                    String(event_name || '')
-                                )}`,
+                                `${process.env.EXPO_PUBLIC_BACKEND_URL}/api/attendance/session/${session_id}`,
                                 {
                                     method: 'DELETE',
                                     headers: {
@@ -137,8 +140,15 @@ export default function AttendanceDetailsScreen() {
                                     },
                                 }
                             );
-                            const data =
-                                await response.json();
+                            const data = await response.json();
+
+                            if (!response.ok) {
+                                Alert.alert(
+                                    'Error',
+                                    data.detail || 'Unable to delete attendance'
+                                );
+                                return;
+                            }
 
                             Alert.alert(
                                 'Success',
@@ -180,7 +190,14 @@ export default function AttendanceDetailsScreen() {
                     <TouchableOpacity
                         activeOpacity={0.8}
                         style={styles.backButton}
-                        onPress={() => router.back()}
+                        onPress={() =>
+                            router.replace({
+                                pathname: "/attendance-history",
+                                params: {
+                                    type,
+                                },
+                            })
+                        }
                     >
                         <Ionicons
                             name="arrow-back"
@@ -331,6 +348,7 @@ export default function AttendanceDetailsScreen() {
                                         attendanceType: type,
                                         selectedDate: date,
                                         eventName: event_name,
+                                        session_id: session_id,
                                         editMode: 'true',
                                     },
                                 })

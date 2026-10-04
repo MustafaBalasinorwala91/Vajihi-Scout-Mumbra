@@ -86,21 +86,10 @@ export default function TabLayout() {
           title: 'Inventory',
           tabBarIcon: ({ color, size }) => (
             <Ionicons
-              name="musical-notes"
+              name="cube"
               size={size}
               color={color}
             />
-          ),
-        }}
-      />
-
-      <Tabs.Screen
-        name="uniforms"
-        options={{
-          headerShown: false,
-          title: 'Uniforms',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="shirt" size={size} color={color} />
           ),
         }}
       />

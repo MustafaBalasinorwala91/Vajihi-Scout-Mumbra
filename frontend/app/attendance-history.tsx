@@ -242,6 +242,7 @@ export default function AttendanceHistoryScreen() {
                             router.push({
                                 pathname: '/attendance-details',
                                 params: {
+                                    session_id: item.session_id,
                                     type: item.attendance_type,
                                     date: item.date,
                                     event_name: item.event_name || '',

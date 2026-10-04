@@ -62,6 +62,7 @@ export default function AttendanceMembersScreen() {
         selectedDate,
         editMode,
         eventName,
+        session_id,
     } = useLocalSearchParams();
 
     // FETCH MEMBERS
@@ -79,9 +80,7 @@ export default function AttendanceMembersScreen() {
             if (!token) return;
 
             const response = await fetch(
-                `${BACKEND_URL}/api/attendance/history-details/${attendanceType}/${selectedDate}?event_name=${encodeURIComponent(
-                    String(eventName || '')
-                )}`,
+                `${BACKEND_URL}/api/attendance/history-details/${session_id}`,
                 {
                     headers: {
                         Authorization: `Bearer ${token}`,
@@ -93,10 +92,10 @@ export default function AttendanceMembersScreen() {
             const map: any = {};
 
             data.forEach((record: any) => {
-
-                map[record.user_id] =
-                    record.status;
-
+                map[record.user_id] = {
+                    attendance_id: record.attendance_id,
+                    status: record.status,
+                };
             });
 
             setAttendanceMap(map);
@@ -201,7 +200,10 @@ export default function AttendanceMembersScreen() {
 
         setAttendanceMap((prev: any) => ({
             ...prev,
-            [userId]: status,
+            [userId]: {
+                attendance_id: prev[userId]?.attendance_id ?? '',
+                status,
+            },
         }));
     };
 
@@ -245,15 +247,34 @@ export default function AttendanceMembersScreen() {
                 return;
             }
 
-            const records = members.map((member) => ({
-                user_id: member.user_id,
-                status: attendanceMap[member.user_id] || 'absent',
-            }));
+            let records;
+            const isEditMode = editMode === 'true';
+            if (isEditMode) {
+
+                records = members.map(member => ({
+                    attendance_id: attendanceMap[member.user_id]?.attendance_id,
+                    status: attendanceMap[member.user_id]?.status || 'absent',
+                }));
+
+            } else {
+
+                records = members.map(member => ({
+                    user_id: member.user_id,
+                    status: attendanceMap[member.user_id]?.status || 'absent',
+                }));
+
+            }
+
+            const endpoint = isEditMode
+                ? `${BACKEND_URL}/api/attendance/session/${session_id}`
+                : `${BACKEND_URL}/api/attendance/bulk`;
+
+            const method = isEditMode ? 'PUT' : 'POST';
 
             const response = await fetch(
-                `${BACKEND_URL}/api/attendance/bulk`,
+                endpoint,
                 {
-                    method: 'POST',
+                    method,
 
                     headers: {
                         'Content-Type':
@@ -263,12 +284,18 @@ export default function AttendanceMembersScreen() {
                             `Bearer ${token}`,
                     },
 
-                    body: JSON.stringify({
-                        attendance_type: attendanceType,
-                        event_name: eventName,
-                        date: selectedDate,
-                        records,
-                    }),
+                    body: JSON.stringify(
+                        isEditMode
+                            ? {
+                                records,
+                            }
+                            : {
+                                attendance_type: attendanceType,
+                                event_name: eventName,
+                                date: selectedDate,
+                                records,
+                            }
+                    )
                 }
             );
 
@@ -279,12 +306,30 @@ export default function AttendanceMembersScreen() {
 
                 Alert.alert(
                     'Success',
-                    'Attendance saved successfully'
+                    isEditMode
+                        ? 'Attendance updated successfully'
+                        : 'Attendance saved successfully'
                 );
 
                 setAttendanceMap({});
 
-                router.replace('/attendance');
+                if (isEditMode) {
+
+                    router.replace({
+                        pathname: '/attendance-details',
+                        params: {
+                            session_id,
+                            type: attendanceType,
+                            date: selectedDate,
+                            event_name: eventName,
+                        },
+                    });
+
+                } else {
+
+                    router.replace('/attendance');
+
+                }
 
             } else {
 
@@ -455,7 +500,7 @@ export default function AttendanceMembersScreen() {
 
                                             style={[
                                                 styles.statusButton,
-                                                attendanceMap[member.user_id] === 'present'
+                                                attendanceMap[member.user_id]?.status === 'present'
                                                     ? styles.presentBtn
                                                     : styles.inactiveBtn,
 
@@ -482,7 +527,7 @@ export default function AttendanceMembersScreen() {
                                                 name="checkmark-circle"
                                                 size={18}
                                                 color={
-                                                    attendanceMap[member.user_id] === 'present'
+                                                    attendanceMap[member.user_id]?.status === 'present'
                                                         ? '#FFFFFF'
                                                         : '#37C978'
                                                 }
@@ -491,7 +536,7 @@ export default function AttendanceMembersScreen() {
                                             <Text
                                                 style={[
                                                     styles.statusText,
-                                                    attendanceMap[member.user_id] === 'present' && {
+                                                    attendanceMap[member.user_id]?.status === 'present' && {
                                                         color: '#fff',
                                                     },
                                                 ]}
@@ -507,7 +552,7 @@ export default function AttendanceMembersScreen() {
 
                                             style={[
                                                 styles.statusButton,
-                                                attendanceMap[member.user_id] === 'absent'
+                                                attendanceMap[member.user_id]?.status === 'absent'
                                                     ? styles.absentBtn
                                                     : styles.inactiveBtn,
 
@@ -534,7 +579,7 @@ export default function AttendanceMembersScreen() {
                                                 name="close-circle"
                                                 size={18}
                                                 color={
-                                                    attendanceMap[member.user_id] === 'absent'
+                                                    attendanceMap[member.user_id]?.status === 'absent'
                                                         ? '#FFFFFF'
                                                         : '#FF5B5B'
                                                 }
@@ -543,7 +588,7 @@ export default function AttendanceMembersScreen() {
                                             <Text
                                                 style={[
                                                     styles.statusText,
-                                                    attendanceMap[member.user_id] === 'absent' && {
+                                                    attendanceMap[member.user_id]?.status === 'absent' && {
                                                         color: '#fff',
                                                     },
                                                 ]}
@@ -615,7 +660,7 @@ export default function AttendanceMembersScreen() {
                     <Text>
                         Present: {
                             Object.values(attendanceMap)
-                                .filter(v => v === 'present')
+                                .filter((v: any) => v.status === 'present')
                                 .length
                         }
                     </Text>
@@ -623,7 +668,7 @@ export default function AttendanceMembersScreen() {
                     <Text>
                         Absent: {
                             Object.values(attendanceMap)
-                                .filter(v => v === 'absent')
+                                .filter((v: any) => v.status === 'absent')
                                 .length
                         }
                     </Text>

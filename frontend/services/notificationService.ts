@@ -24,22 +24,32 @@ export async function registerForPushNotifications() {
         return null;
     }
 
-    const tokenData =
-        await Notifications.getExpoPushTokenAsync();
+    try {
+        const tokenData =
+            await Notifications.getExpoPushTokenAsync();
 
-    const token = tokenData.data;
-    console.log("EXPO TOKEN:", token);
-    return token;
+        const token = tokenData.data;
 
-    if (Platform.OS === "android") {
-        await Notifications.setNotificationChannelAsync(
-            "default",
-            {
-                name: "default",
-                importance: Notifications.AndroidImportance.MAX,
-            }
+        console.log("EXPO TOKEN:", token);
+
+        if (Platform.OS === "android") {
+            await Notifications.setNotificationChannelAsync(
+                "default",
+                {
+                    name: "default",
+                    importance:
+                        Notifications.AndroidImportance.MAX,
+                }
+            );
+        }
+
+        return token;
+    } catch (error) {
+        console.log(
+            "Failed to get Expo Push Token:",
+            error
         );
-    }
 
-    return token;
+        return null;
+    }
 }
