@@ -15,7 +15,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
-
+import { useTheme } from '../../contexts/ThemeContext';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
 import NotificationBell from '../../components/common/NotificationBell';
@@ -53,6 +53,7 @@ export default function AttendanceScreen() {
     Math.floor((SCREEN_WIDTH - 68) / 7);
   const router = useRouter();
   const { user } = useAuth();
+  const { theme } = useTheme();
 
   const [attendanceType, setAttendanceType] =
     useState('practice');
@@ -261,7 +262,7 @@ export default function AttendanceScreen() {
 
   return (
 
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
 
       <ScrollView
 
@@ -347,7 +348,15 @@ export default function AttendanceScreen() {
         {/* MONTH */}
         <View style={styles.monthWrapper}>
 
-          <View style={styles.monthSelector}>
+          <View
+            style={[
+              styles.monthSelector,
+              {
+                backgroundColor: theme.card,
+                borderColor: theme.border,
+              },
+            ]}
+          >
 
             <TouchableOpacity
               onPress={goToPreviousMonth}
@@ -370,7 +379,7 @@ export default function AttendanceScreen() {
                 color="#5B3DF5"
               />
 
-              <Text style={styles.monthText}>
+              <Text style={[styles.monthText, { color: theme.title }]}>
                 {monthName} {currentYear}
               </Text>
 
@@ -435,7 +444,15 @@ export default function AttendanceScreen() {
         </ScrollView>
 
         {/* CALENDAR */}
-        <View style={styles.calendarContainer}>
+        <View
+          style={[
+            styles.calendarContainer,
+            {
+              backgroundColor: theme.card,
+              borderColor: theme.border,
+            },
+          ]}
+        >
 
           <View style={styles.weekRow}>
             {[
@@ -448,7 +465,7 @@ export default function AttendanceScreen() {
               'Sat',
             ].map((day) => (
               <Text
-                style={styles.weekText}
+                style={[styles.weekText, { color: theme.subtitle }]}
                 key={day}
               >
                 {day}
@@ -504,7 +521,15 @@ export default function AttendanceScreen() {
         </View>
 
         {/* LEGEND */}
-        <View style={styles.legendContainer}>
+        <View
+          style={[
+            styles.legendContainer,
+            {
+              backgroundColor: theme.card,
+              borderColor: theme.border,
+            },
+          ]}
+        >
 
           <View style={styles.legendItem}>
             <View
@@ -516,7 +541,7 @@ export default function AttendanceScreen() {
               ]}
             />
 
-            <Text style={styles.legendText}>
+            <Text style={[styles.legendText, { color: theme.title }]}>
               Present
             </Text>
           </View>
@@ -538,9 +563,17 @@ export default function AttendanceScreen() {
 
         </View>
         {canManageAttendance && (
-          <View style={styles.eventCard}>
+          <View
+            style={[
+              styles.eventCard,
+              {
+                backgroundColor: theme.card,
+                borderColor: theme.border,
+              },
+            ]}
+          >
 
-            <Text style={styles.eventTitle}>
+            <Text style={[styles.eventTitle, { color: theme.title }]}>
               Select Event
             </Text>
 
@@ -556,8 +589,16 @@ export default function AttendanceScreen() {
                   key={item}
                   style={[
                     styles.eventChip,
-                    eventName === item &&
-                    styles.eventChipActive,
+                    {
+                      backgroundColor:
+                        eventName === item
+                          ? '#5B3DF5'
+                          : theme.input,
+                      borderColor:
+                        eventName === item
+                          ? '#5B3DF5'
+                          : theme.inputBorder,
+                    },
                   ]}
                   onPress={() => setEventName(item)}
                 >
@@ -565,8 +606,12 @@ export default function AttendanceScreen() {
                   <Text
                     style={[
                       styles.eventChipText,
-                      eventName === item &&
-                      styles.eventChipTextActive,
+                      {
+                        color:
+                          eventName === item
+                            ? '#fff'
+                            : theme.title,
+                      },
                     ]}
                   >
                     {item}
@@ -578,48 +623,51 @@ export default function AttendanceScreen() {
             </ScrollView>
 
           </View>
-        )}
+        )
+        }
 
         {/* VIEW MEMBERS BUTTON */}
-        {canManageAttendance && (
+        {
+          canManageAttendance && (
 
-          <TouchableOpacity
+            <TouchableOpacity
 
-            style={styles.viewButton}
+              style={styles.viewButton}
 
-            onPress={() => {
+              onPress={() => {
 
-              router.push({
-                pathname: '/attendance-members',
-                params: {
-                  attendanceType,
-                  selectedDate,
-                  eventName,
-                },
-              });
+                router.push({
+                  pathname: '/attendance-members',
+                  params: {
+                    attendanceType,
+                    selectedDate,
+                    eventName,
+                  },
+                });
 
-            }}
-          >
-
-            <LinearGradient
-              colors={['#6C4DFF', '#5B3DF5']}
-              style={styles.viewGradient}
+              }}
             >
 
-              <Ionicons
-                name="people-outline"
-                size={22}
-                color="#fff"
-              />
+              <LinearGradient
+                colors={['#6C4DFF', '#5B3DF5']}
+                style={styles.viewGradient}
+              >
 
-              <Text style={styles.viewText}>
-                View Members
-              </Text>
+                <Ionicons
+                  name="people-outline"
+                  size={22}
+                  color="#fff"
+                />
 
-            </LinearGradient>
+                <Text style={styles.viewText}>
+                  View Members
+                </Text>
 
-          </TouchableOpacity>
-        )}
+              </LinearGradient>
+
+            </TouchableOpacity>
+          )
+        }
 
         <View style={styles.historyButtonsContainer}>
 
@@ -658,7 +706,7 @@ const styles = StyleSheet.create({
   },
 
   header: {
-    paddingTop: 65,
+    paddingTop: 70,
     paddingHorizontal: 24,
     paddingBottom: 36,
     borderBottomLeftRadius: 42,
@@ -701,6 +749,8 @@ const styles = StyleSheet.create({
     height: 72,
 
     borderRadius: 24,
+
+    borderWidth: 1,
 
     flexDirection: 'row',
 
@@ -765,6 +815,7 @@ const styles = StyleSheet.create({
     marginTop: 24,
     marginHorizontal: 18,
     borderRadius: 34,
+    borderWidth: 1,
     paddingVertical: 24,
     paddingHorizontal: 16,
     paddingBottom: 8,
@@ -794,6 +845,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 18,
     marginTop: 20,
     borderRadius: 22,
+    borderWidth: 1,
     padding: 20,
     flexDirection: 'row',
     justifyContent: 'space-around',
@@ -869,6 +921,7 @@ const styles = StyleSheet.create({
     marginHorizontal: wp(4.5),
     marginTop: hp(2.2),
     borderRadius: wp(6),
+    borderWidth: 1,
     padding: wp(4.5),
 
     shadowColor: '#000',

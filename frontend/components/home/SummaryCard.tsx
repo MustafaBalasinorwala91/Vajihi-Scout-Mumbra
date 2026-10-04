@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../../contexts/ThemeContext';
 
 export default function SummaryCard({
     icon,
@@ -16,8 +17,18 @@ export default function SummaryCard({
     subtitle,
     color,
 }: any) {
+    const { theme } = useTheme();
+
     return (
-        <View style={styles.card}>
+        <View
+            style={[
+                styles.card,
+                {
+                    backgroundColor: theme.card,
+                    borderColor: theme.border,
+                },
+            ]}
+        >
             <View
                 style={[
                     styles.iconContainer,
@@ -31,15 +42,15 @@ export default function SummaryCard({
                 />
             </View>
 
-            <Text style={styles.value}>
+            <Text style={[styles.value, { color: theme.title }]}>
                 {value}
             </Text>
 
-            <Text style={styles.title}>
+            <Text style={[styles.title, { color: theme.title }]}>
                 {title}
             </Text>
 
-            <Text style={styles.subtitle}>
+            <Text style={[styles.subtitle, { color: theme.subtitle }]}>
                 {subtitle}
             </Text>
         </View>
@@ -53,6 +64,8 @@ const styles = StyleSheet.create({
         backgroundColor: '#fff',
 
         borderRadius: wp('7%'),
+
+        borderWidth: 1,
 
         padding: wp('5.5%'),
 

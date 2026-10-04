@@ -1,6 +1,8 @@
 import React, { useState, useEffect, } from 'react';
 import BadgeCard from '../../components/BadgeCard';
 import FavouriteItem from '../../components/FavouriteItem';
+import { wp, hp } from '../../utils/responsive';
+import { rf } from '../../utils/fonts';
 import {
   View,
   Text,
@@ -14,6 +16,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useTheme } from '../../contexts/ThemeContext';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
 import { useRouter } from 'expo-router';
@@ -29,74 +32,94 @@ const InfoField = ({
   editing,
   formData,
   setFormData,
-}: any) => (
-  <View style={styles.infoItem}>
-    <View style={styles.infoIconWrap}>
-      <Ionicons name={icon} size={20} color="#5B4FCE" />
-    </View>
+}: any) => {
+  const { theme } = useTheme();
 
-    <View style={{ flex: 1 }}>
-      <Text style={styles.infoLabel}>{label}</Text>
+  return (
+    <View style={styles.infoItem}>
+      <View style={styles.infoIconWrap}>
+        <Ionicons name={icon} size={20} color="#5B4FCE" />
+      </View>
 
-      {editing ? (
-        <TextInput
-          style={styles.input}
-          value={value}
-          keyboardType={keyboard}
-          placeholder={placeholder}
-          placeholderTextColor="#999"
-          onChangeText={(text) => {
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.infoLabel, { color: theme.subtitle }]}>
+          {label}
+        </Text>
 
-            let updatedText = text;
+        {editing ? (
+          <TextInput
+            style={[
+              styles.input,
+              {
+                backgroundColor: theme.input,
+                borderColor: theme.inputBorder,
+                color: theme.title,
+              },
+            ]}
+            value={value}
+            keyboardType={keyboard}
+            placeholder={placeholder}
+            placeholderTextColor={theme.placeholder}
+            onChangeText={(text) => {
 
-            // AUTO FORMAT DATE
-            if (keyName === 'birth_date') {
+              let updatedText = text;
 
-              updatedText =
-                text
-                  .replace(/\D/g, '')
-                  .slice(0, 8);
-
-              if (updatedText.length > 4) {
+              // AUTO FORMAT DATE
+              if (keyName === 'birth_date') {
 
                 updatedText =
-                  `${updatedText.slice(0, 2)}/${updatedText.slice(2, 4)}/${updatedText.slice(4)}`;
+                  text
+                    .replace(/\D/g, '')
+                    .slice(0, 8);
 
-              } else if (updatedText.length > 2) {
+                if (updatedText.length > 4) {
 
-                updatedText =
-                  `${updatedText.slice(0, 2)}/${updatedText.slice(2)}`;
+                  updatedText =
+                    `${updatedText.slice(0, 2)}/${updatedText.slice(2, 4)}/${updatedText.slice(4)}`;
+
+                } else if (updatedText.length > 2) {
+
+                  updatedText =
+                    `${updatedText.slice(0, 2)}/${updatedText.slice(2)}`;
+                }
               }
-            }
 
-            // NUMBERS ONLY
-            if (
-              keyName === 'phone' ||
-              keyName === 'parent_contact' ||
-              keyName === 'its_no' ||
-              keyName === 'age' ||
-              keyName === 'joining_year'
-            ) {
+              // NUMBERS ONLY
+              if (
+                keyName === 'phone' ||
+                keyName === 'parent_contact' ||
+                keyName === 'its_no' ||
+                keyName === 'age' ||
+                keyName === 'joining_year'
+              ) {
 
-              updatedText = text.replace(/\D/g, '');
-            }
+                updatedText = text.replace(/\D/g, '');
+              }
 
-            setFormData({
-              ...formData,
-              [keyName]: updatedText,
-            });
-          }}
-        />
-      ) : (
-        <Text style={styles.infoValue}
-          numberOfLines={1}>{value || 'Not provided'}</Text>
-      )}
+              setFormData({
+                ...formData,
+                [keyName]: updatedText,
+              });
+            }}
+          />
+        ) : (
+          <Text
+            style={[
+              styles.infoValue,
+              { color: theme.title },
+            ]}
+            numberOfLines={1}>{value || 'Not provided'}</Text>
+        )}
+      </View>
     </View>
-  </View>
-);
+  );
+};
+
 export default function ProfileScreen() {
   const { user, logout, checkAuth } = useAuth();
   const router = useRouter();
+  const { theme } = useTheme();
+  const [positionTags, setPositionTags] = useState<any[]>([]);
   const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] =
@@ -129,6 +152,7 @@ export default function ProfileScreen() {
     if (!user) return;
 
     loadAttendanceStats();
+    loadPositionTags();
 
     setFormData({
       its_no: user?.its_no || '',
@@ -149,6 +173,14 @@ export default function ProfileScreen() {
   const bio =
     `${user?.instrument || 'No Instrument Assigned'
     }`;
+
+  const getPosition = (tag?: string) => {
+    if (!tag) return null;
+
+    return positionTags.find(
+      (position) => position.value === tag
+    );
+  };
 
   const handlePickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -294,6 +326,28 @@ export default function ProfileScreen() {
 
     setRefreshing(false);
   };
+  const loadPositionTags = async () => {
+    try {
+      const token = await AsyncStorage.getItem('session_token');
+      if (!token) return;
+
+      const response = await fetch(
+        `${process.env.EXPO_PUBLIC_BACKEND_URL}/api/tags`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!response.ok) return;
+
+      const data = await response.json();
+      setPositionTags(data);
+    } catch (error) {
+      console.log('POSITION TAGS ERROR:', error);
+    }
+  };
   const loadAttendanceStats = async () => {
 
     try {
@@ -433,7 +487,7 @@ export default function ProfileScreen() {
         />
       }
 
-      style={styles.container}
+      style={[styles.container, { backgroundColor: theme.background }]}
       showsVerticalScrollIndicator={false}
       contentContainerStyle={{
         paddingBottom: 150,
@@ -484,8 +538,34 @@ export default function ProfileScreen() {
               allowFontScaling={false}
             >{user?.name || 'Member'}</Text>
 
-            <View style={styles.memberBadge}>
-              <Text style={styles.memberBadgeText}>
+            {getPosition(user?.tag) && (
+              <View
+                style={[
+                  styles.memberBadge,
+                  {
+                    backgroundColor:
+                      getPosition(user?.tag)?.color || '#999',
+                  },
+                ]}
+              >
+                <Text style={styles.memberBadgeText}>
+                  {getPosition(user?.tag)?.name}
+                </Text>
+              </View>
+            )}
+
+            <View
+              style={[
+                styles.positionBadge,
+                user?.role === 'admin' && styles.adminRoleBadge,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.positionBadgeText,
+                  user?.role === 'admin' && styles.adminRoleText,
+                ]}
+              >
                 {user?.role?.toUpperCase() || 'MEMBER'}
               </Text>
             </View>
@@ -535,9 +615,19 @@ export default function ProfileScreen() {
       </LinearGradient>
 
       <View style={styles.mainContent}>
-        <View style={styles.card}>
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: theme.card,
+              borderColor: theme.border,
+            },
+          ]}
+        >
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Personal Information</Text>
+            <Text style={[styles.sectionTitle, { color: theme.title }]}>
+              Personal Information
+            </Text>
 
             {!editing && (
               <TouchableOpacity onPress={() => setEditing(true)}>
@@ -652,26 +742,40 @@ export default function ProfileScreen() {
           />
         </View>
 
-        <View style={styles.card}>
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: theme.card,
+              borderColor: theme.border,
+            },
+          ]}
+        >
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Attendance</Text>
-            <Text style={styles.monthText}>Overall Attendance</Text>
+            <Text style={[styles.sectionTitle, { color: theme.title }]}>Attendance</Text>
+            <Text style={[styles.monthText, { color: theme.subtitle }]}>
+              Overall Attendance
+            </Text>
           </View>
 
           <View style={styles.attendanceRow}>
             <View style={styles.attendanceCirclePurple}>
-              <Text style={styles.attendancePercent}
+              <Text
+                style={[
+                  styles.attendancePercent,
+                  { color: theme.title },
+                ]}
                 allowFontScaling={false}>
                 {practiceStats?.percentage || 0}%
               </Text>
             </View>
 
             <View>
-              <Text style={styles.attendanceTitle}>
+              <Text style={[styles.attendanceTitle, { color: theme.title }]}>
                 Practices
               </Text>
 
-              <Text style={styles.attendanceSub}>
+              <Text style={[styles.attendanceSub, { color: theme.subtitle }]}>
                 Present: {practiceStats?.present || 0} / {practiceStats?.total || 0}
               </Text>
             </View>
@@ -679,45 +783,61 @@ export default function ProfileScreen() {
 
           <View style={styles.attendanceRow}>
             <View style={styles.attendanceCircleOrange}>
-              <Text style={styles.attendancePercent}
+              <Text
+                style={[
+                  styles.attendancePercent,
+                  { color: theme.title },
+                ]}
                 allowFontScaling={false}>
                 {khidmatStats?.percentage || 0}%
               </Text>
             </View>
 
             <View>
-              <Text style={styles.attendanceTitle}>
+              <Text style={[styles.attendanceTitle, { color: theme.title }]}>
                 Khidmat
               </Text>
 
-              <Text style={styles.attendanceSub}>
+              <Text style={[styles.attendanceSub, { color: theme.subtitle }]}>
                 Present: {khidmatStats?.present || 0} / {khidmatStats?.total || 0}
               </Text>
             </View>
           </View>
           <View style={styles.attendanceRow}>
             <View style={styles.attendanceCirclePurple}>
-              <Text style={styles.attendancePercent}
+              <Text
+                style={[
+                  styles.attendancePercent,
+                  { color: theme.title },
+                ]}
                 allowFontScaling={false}>
                 {dutiesStats?.percentage || 0}%
               </Text>
             </View>
 
             <View>
-              <Text style={styles.attendanceTitle}>
+              <Text style={[styles.attendanceTitle, { color: theme.title }]}>
                 Duties
               </Text>
 
-              <Text style={styles.attendanceSub}>
+              <Text style={[styles.attendanceSub, { color: theme.subtitle }]}>
                 Present: {dutiesStats?.present || 0} / {dutiesStats?.total || 0}
               </Text>
             </View>
           </View>
         </View>
 
-        <View style={styles.card}>
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: theme.card,
+              borderColor: theme.border,
+            },
+          ]}
+        >
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Badges</Text>
+            <Text style={[styles.sectionTitle, { color: theme.title }]}>Badges</Text>
           </View>
 
           <ScrollView
@@ -737,9 +857,17 @@ export default function ProfileScreen() {
           </ScrollView>
         </View>
 
-        <View style={styles.card}>
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: theme.card,
+              borderColor: theme.border,
+            },
+          ]}
+        >
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Favorites</Text>
+            <Text style={[styles.sectionTitle, { color: theme.title }]}>Favorites</Text>
           </View>
 
           <ScrollView
@@ -761,7 +889,13 @@ export default function ProfileScreen() {
         {editing && (
           <View style={styles.buttonContainer}>
             <TouchableOpacity
-              style={styles.cancelButton}
+              style={[
+                styles.cancelButton,
+                {
+                  backgroundColor: theme.input,
+                  borderColor: theme.border,
+                },
+              ]}
               onPress={() => {
 
                 setFormData({
@@ -781,7 +915,9 @@ export default function ProfileScreen() {
 
               }}
             >
-              <Text style={styles.cancelText}>Cancel</Text>
+              <Text style={[styles.cancelText, { color: theme.title }]}>
+                Cancel
+              </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -801,7 +937,16 @@ export default function ProfileScreen() {
           </View>
         )}
 
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+        <TouchableOpacity
+          style={[
+            styles.logoutButton,
+            {
+              backgroundColor: theme.card,
+              borderColor: theme.border,
+            },
+          ]}
+          onPress={handleLogout}
+        >
           <Ionicons name="log-out-outline" size={24} color="#ff4d67" />
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
@@ -895,6 +1040,32 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 30,
     paddingHorizontal: 20,
+  },
+
+  positionBadge: {
+    alignSelf: 'center',
+    marginTop: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+
+  adminRoleBadge: {
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+
+  adminRoleText: {
+    fontSize: 18,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+  },
+
+  positionBadgeText: {
+    color: '#fff',
+    fontSize: rf(11),
+    fontWeight: '700',
   },
 
   memberBadge: {
@@ -1152,6 +1323,7 @@ const styles = StyleSheet.create({
   logoutButton: {
     backgroundColor: '#fff',
     borderRadius: 24,
+    borderWidth: 1,
     paddingVertical: 18,
     justifyContent: 'center',
     alignItems: 'center',

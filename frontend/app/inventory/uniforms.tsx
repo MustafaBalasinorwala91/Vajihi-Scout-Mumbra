@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NotificationBell from '../../components/common/NotificationBell';
+import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 
 type UniformStats = {
@@ -44,6 +45,7 @@ type FilterType = 'All' | 'Active' | 'Low Stock' | 'Assigned';
 
 export default function UniformsScreen() {
   const router = useRouter();
+  const { theme } = useTheme();
 
   const { user, hasPermission } = useAuth();
 
@@ -348,7 +350,7 @@ export default function UniformsScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
 
       <ScrollView
         showsVerticalScrollIndicator={false}

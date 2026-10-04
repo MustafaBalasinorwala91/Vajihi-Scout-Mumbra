@@ -2,7 +2,6 @@ import React, {
     useEffect,
     useState,
 } from 'react';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import {
     View,
     Text,
@@ -11,6 +10,7 @@ import {
     TouchableOpacity,
     ActivityIndicator,
     Alert,
+    StatusBar,
 } from 'react-native';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -19,7 +19,7 @@ import {
     useLocalSearchParams,
     useRouter,
 } from 'expo-router';
-
+import { useTheme } from '../contexts/ThemeContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
@@ -27,6 +27,7 @@ export default function AttendanceDetailsScreen() {
 
     const router = useRouter();
     const { user } = useAuth();
+    const { theme } = useTheme();
 
     const {
         session_id,
@@ -175,10 +176,12 @@ export default function AttendanceDetailsScreen() {
 
     return (
 
-        <SafeAreaView
-            style={styles.container}
-            edges={['top']}
-        >
+        <View style={[styles.container, { backgroundColor: theme.background }]}>
+            <StatusBar
+                translucent
+                backgroundColor="transparent"
+                barStyle="light-content"
+            />
 
             <LinearGradient
                 colors={['#2B145A', '#5B3DF5']}
@@ -208,26 +211,21 @@ export default function AttendanceDetailsScreen() {
 
                     <View>
 
-                        <Text style={styles.headerTitle}
-                            allowFontScaling={false}>
+                        <Text
+                            style={styles.headerTitle}
+                            allowFontScaling={false}
+                        >
                             Attendance Details
                         </Text>
 
-                        <Text style={styles.headerSubtitle}>
+                        <Text
+                            style={styles.headerSubtitle}
+                            allowFontScaling={false}
+                            numberOfLines={1}
+                        >
                             {type} • {formattedDate}
+                            {event_name ? ` • ${event_name}` : ''}
                         </Text>
-
-                        {event_name ? (
-                            <Text
-                                style={{
-                                    color: 'rgba(255,255,255,0.8)',
-                                    marginTop: 4,
-                                    fontSize: 14,
-                                }}
-                            >
-                                {event_name}
-                            </Text>
-                        ) : null}
                     </View>
 
                 </View>
@@ -252,9 +250,21 @@ export default function AttendanceDetailsScreen() {
                     }}
                 >
 
-                    <View style={styles.sectionCard}>
+                    <View
+                        style={[
+                            styles.sectionCard,
+                            {
+                                backgroundColor: theme.card,
+                                borderColor: theme.border,
+                            },
+                        ]}
+                    >
 
-                        <Text style={styles.sectionTitle}
+                        <Text
+                            style={[
+                                styles.sectionTitle,
+                                { color: theme.title },
+                            ]}
                             allowFontScaling={false}>
                             Present Members ({presentMembers.length})
                         </Text>
@@ -280,7 +290,10 @@ export default function AttendanceDetailsScreen() {
                                     <View style={styles.presentDot} />
 
                                     <Text
-                                        style={styles.memberName}
+                                        style={[
+                                            styles.memberName,
+                                            { color: theme.title },
+                                        ]}
                                         numberOfLines={1}
                                         allowFontScaling={false}
                                     >
@@ -295,17 +308,33 @@ export default function AttendanceDetailsScreen() {
 
                     </View>
 
-                    <View style={styles.sectionCard}>
+                    <View
+                        style={[
+                            styles.sectionCard,
+                            {
+                                backgroundColor: theme.card,
+                                borderColor: theme.border,
+                            },
+                        ]}
+                    >
 
-                        <Text style={styles.sectionTitle}
-                            allowFontScaling={false}>
+                        <Text
+                            style={[
+                                styles.sectionTitle,
+                                { color: theme.title },
+                            ]}
+                            allowFontScaling={false}
+                        >
                             Absent Members ({absentMembers.length})
                         </Text>
 
                         {absentMembers.length === 0 ? (
 
                             <Text
-                                style={styles.emptyText}
+                                style={[
+                                    styles.emptyText,
+                                    { color: theme.subtitle },
+                                ]}
                                 allowFontScaling={false}
                             >
                                 No absent members found
@@ -323,7 +352,10 @@ export default function AttendanceDetailsScreen() {
                                     <View style={styles.absentDot} />
 
                                     <Text
-                                        style={styles.memberName}
+                                        style={[
+                                            styles.memberName,
+                                            { color: theme.title },
+                                        ]}
                                         numberOfLines={1}
                                         allowFontScaling={false}
                                     >
@@ -381,7 +413,7 @@ export default function AttendanceDetailsScreen() {
                 </ScrollView>
 
             )}
-        </SafeAreaView>
+        </View>
 
     );
 }
@@ -394,8 +426,8 @@ const styles = StyleSheet.create({
     },
 
     header: {
-        paddingTop: 70,
-        paddingBottom: 30,
+        paddingTop: 80,
+        paddingBottom: 40,
         paddingHorizontal: 24,
 
         borderBottomLeftRadius: 34,
@@ -428,8 +460,8 @@ const styles = StyleSheet.create({
     },
 
     headerSubtitle: {
-        marginTop: 6,
-        fontSize: 16,
+        marginTop: 9,
+        fontSize: 15,
         color: 'rgba(255,255,255,0.8)',
     },
 
@@ -443,6 +475,8 @@ const styles = StyleSheet.create({
         backgroundColor: '#fff',
 
         borderRadius: 24,
+
+        borderWidth: 1,
 
         padding: 20,
 

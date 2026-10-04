@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../../contexts/ThemeContext';
 
 interface Props {
     icon: string;
@@ -22,8 +23,17 @@ const AttendanceCard = ({
     label,
     color,
 }: Props) => {
+    const { theme } = useTheme();
     return (
-        <View style={styles.card}>
+        <View
+            style={[
+                styles.card,
+                {
+                    backgroundColor: theme.card,
+                    borderColor: theme.border,
+                },
+            ]}
+        >
             <View
                 style={[
                     styles.iconBox,
@@ -37,11 +47,11 @@ const AttendanceCard = ({
                 />
             </View>
 
-            <Text style={styles.value}>
+            <Text style={[styles.value, { color: theme.title }]}>
                 {value}
             </Text>
 
-            <Text style={styles.label}>
+            <Text style={[styles.label, { color: theme.subtitle }]}>
                 {label}
             </Text>
         </View>
@@ -58,6 +68,8 @@ const styles = StyleSheet.create({
         backgroundColor: '#fff',
 
         borderRadius: wp('6%'),
+
+        borderWidth: 1,
 
         paddingVertical: hp('2.2%'),
         paddingHorizontal: wp('4%'),

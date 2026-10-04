@@ -9,11 +9,18 @@ import {
 } from 'react-native';
 
 import { LinearGradient } from 'expo-linear-gradient';
+import { useTheme } from '../../contexts/ThemeContext';
 
 export default function WelcomeCard() {
+    const { darkMode, theme } = useTheme();
+
     return (
         <LinearGradient
-            colors={['rgba(255,255,255,0.95)', '#F5EDFF']}
+            colors={
+                darkMode
+                    ? ['rgba(27,27,39,0.96)', '#24203A']
+                    : ['rgba(255,255,255,0.95)', '#F5EDFF']
+            }
             style={styles.card}
         >
             <View style={styles.left}>
@@ -21,11 +28,11 @@ export default function WelcomeCard() {
                     Good Morning!
                 </Text>
 
-                <Text style={styles.name}>
-                    Member
+                <Text style={[styles.name, { color: theme.title }]}>
+                    Members
                 </Text>
 
-                <Text style={styles.description}>
+                <Text style={[styles.description, { color: theme.subtitle }]}>
                     Welcome back! Have a productive day ahead.
                 </Text>
 
@@ -95,7 +102,7 @@ const styles = StyleSheet.create({
     },
 
     name: {
-        fontSize: rf(28),
+        fontSize: rf(25),
         fontWeight: '800',
         color: '#16162E',
 
@@ -103,8 +110,8 @@ const styles = StyleSheet.create({
     },
 
     description: {
-        color: '#666',
-        fontSize: rf(15),
+        color: '#0b0b0b',
+        fontSize: rf(13),
         lineHeight: rf(20),
     },
 

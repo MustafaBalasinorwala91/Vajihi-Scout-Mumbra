@@ -61,7 +61,7 @@ export default function SplashScreen() {
         </Text>
 
         <Text style={styles.footerName}>
-          Mustafa Balasinorwala
+          Mustafa Balasinorwala & Mansoor Kholkha
         </Text>
 
         <Text style={styles.footerCopyright}>

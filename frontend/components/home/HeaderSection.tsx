@@ -10,10 +10,13 @@ import {
 } from 'react-native';
 
 import { LinearGradient } from 'expo-linear-gradient';
+import { useTheme } from '../../contexts/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import NotificationBell from '../../components/common/NotificationBell';
 
 export default function HeaderSection() {
+    const { theme } = useTheme();
+
     return (
         <LinearGradient
             colors={['#2B145A', '#5B3DF5']}
@@ -49,7 +52,14 @@ export default function HeaderSection() {
                 BGMM - Long Live His Holiness
             </Text>
 
-            <View style={styles.wave} />
+            <View
+                style={[
+                    styles.wave,
+                    {
+                        backgroundColor: theme.background,
+                    },
+                ]}
+            />
         </LinearGradient>
     );
 }
@@ -149,8 +159,6 @@ const styles = StyleSheet.create({
         width: '120%',
 
         height: hp('10%'),
-
-        backgroundColor: '#F5F5F5',
 
         borderTopLeftRadius: wp('25%'),
         borderTopRightRadius: wp('25%'),

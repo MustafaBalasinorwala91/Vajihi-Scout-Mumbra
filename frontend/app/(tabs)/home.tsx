@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTheme } from '../../contexts/ThemeContext';
 import {
   View,
   Text,
@@ -7,6 +8,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useAuth } from '../../contexts/AuthContext';
 import HeaderSection from '../../components/home/HeaderSection';
 import WelcomeCard from '../../components/home/WelcomeCard';
 import SummaryCard from '../../components/home/SummaryCard';
@@ -22,6 +24,10 @@ type ActionItem = {
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { theme } = useTheme();
+  const { user } = useAuth();
+
+  const isAdmin = user?.role === 'admin';
   const [refreshing, setRefreshing] = React.useState(false);
   const onRefresh = async () => {
     setRefreshing(true);
@@ -109,25 +115,24 @@ export default function HomeScreen() {
 
     {
       id: 5,
-      title: 'Assign Tags',
-      description: 'Assign & manage member tags',
-      icon: 'pricetag',
-      colors: ['#8E2BFF', '#2B145A'] as [string, string],
-      route: '/manage-tags',
-    },
-
-    {
-      id: 6,
       title: 'About Us',
       description: 'Learn more about Vajihi Scout Mumbra',
       icon: 'information-circle',
       colors: ['#8E2BFF', '#2B145A'] as [string, string],
       route: '/about-band',
     },
+    {
+      id: 6,
+      title: 'Assign Positions',
+      description: 'Assign & manage member positions',
+      icon: 'ribbon',
+      colors: ['#8E2BFF', '#2B145A'] as [string, string],
+      route: '/assign-tags',
+    },
   ];
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
       <ScrollView
         refreshControl={
           <RefreshControl
@@ -155,7 +160,7 @@ export default function HomeScreen() {
 
         {/* SUMMARY SECTION */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
+          <Text style={[styles.sectionTitle, { color: theme.section }]}>
             Overview
           </Text>
 
@@ -182,26 +187,28 @@ export default function HomeScreen() {
         {/* QUICK ACTIONS */}
         <View style={styles.section}>
           <View style={styles.quickHeader}>
-            <Text style={styles.sectionTitle}>
+            <Text style={[styles.sectionTitle, { color: theme.section }]}>
               Quick Actions
             </Text>
           </View>
 
           <View style={styles.quickGrid}>
-            {quickActions.map((item) => (
-              <QuickActionCard
-                key={item.id}
-                icon={item.icon}
-                title={item.title}
-                description={item.description}
-                colors={item.colors}
-                onPress={() => {
-                  if (item.route) {
-                    router.push(item.route as any);
-                  }
-                }}
-              />
-            ))}
+            {quickActions
+              .filter((item) => item.id !== 6 || isAdmin)
+              .map((item) => (
+                <QuickActionCard
+                  key={item.id}
+                  icon={item.icon}
+                  title={item.title}
+                  description={item.description}
+                  colors={item.colors}
+                  onPress={() => {
+                    if (item.route) {
+                      router.push(item.route as any);
+                    }
+                  }}
+                />
+              ))}
           </View>
         </View>
       </ScrollView>

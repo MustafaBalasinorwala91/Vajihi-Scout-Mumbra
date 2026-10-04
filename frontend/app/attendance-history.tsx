@@ -16,6 +16,7 @@ import * as Sharing from 'expo-sharing';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import api from '../services/api';
+import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 export default function AttendanceHistoryScreen() {
@@ -25,6 +26,7 @@ export default function AttendanceHistoryScreen() {
         useState(false);
     const router = useRouter();
     const { user } = useAuth();
+    const { theme } = useTheme();
     const formatDate = (date: string) =>
         new Date(date).toLocaleDateString(
             'en-IN',
@@ -131,12 +133,16 @@ export default function AttendanceHistoryScreen() {
     };
 
     return (
-        <SafeAreaView
-            style={styles.container}
-            edges={['top']}
+        <View
+            style={[
+                styles.container,
+                { backgroundColor: theme.background },
+            ]}
         >
 
             <StatusBar
+                translucent
+                backgroundColor="transparent"
                 barStyle="light-content"
             />
 
@@ -211,11 +217,21 @@ export default function AttendanceHistoryScreen() {
                             color="#C7C7C7"
                         />
 
-                        <Text style={styles.emptyTitle}>
+                        <Text
+                            style={[
+                                styles.emptyTitle,
+                                { color: theme.title },
+                            ]}
+                        >
                             No Attendance History
                         </Text>
 
-                        <Text style={styles.emptySubtitle}>
+                        <Text
+                            style={[
+                                styles.emptySubtitle,
+                                { color: theme.subtitle },
+                            ]}
+                        >
                             No attendance records found.
                         </Text>
                     </View>
@@ -237,7 +253,13 @@ export default function AttendanceHistoryScreen() {
 
                     <TouchableOpacity
                         activeOpacity={0.8}
-                        style={styles.card}
+                        style={[
+                            styles.card,
+                            {
+                                backgroundColor: theme.card,
+                                borderColor: theme.border,
+                            },
+                        ]}
                         onPress={() =>
                             router.push({
                                 pathname: '/attendance-details',
@@ -254,7 +276,12 @@ export default function AttendanceHistoryScreen() {
                         <View style={styles.topRow}>
 
                             <View>
-                                <Text style={styles.date}>
+                                <Text
+                                    style={[
+                                        styles.date,
+                                        { color: theme.title },
+                                    ]}
+                                >
                                     {formatDate(item.date)}
                                 </Text>
 
@@ -262,7 +289,7 @@ export default function AttendanceHistoryScreen() {
                                     <Text
                                         style={{
                                             marginTop: 4,
-                                            color: '#666',
+                                            color: theme.subtitle,
                                             fontSize: 14,
                                         }}
                                     >
@@ -333,7 +360,7 @@ export default function AttendanceHistoryScreen() {
                 }
             />
 
-        </SafeAreaView >
+        </View>
     );
 }
 
@@ -354,8 +381,8 @@ const styles = StyleSheet.create({
     },
 
     header: {
-        paddingTop: 70,
-        paddingBottom: 30,
+        paddingTop: 80,
+        paddingBottom: 40,
         paddingHorizontal: 24,
 
         borderBottomLeftRadius: 34,
@@ -377,8 +404,8 @@ const styles = StyleSheet.create({
     },
 
     headerSubtitle: {
-        marginTop: 6,
-        fontSize: 16,
+        marginTop: 9,
+        fontSize: 15,
         color: 'rgba(255,255,255,0.8)',
     },
 
@@ -491,7 +518,7 @@ const styles = StyleSheet.create({
         width: 48,
         height: 48,
 
-        borderRadius: 16,
+        borderRadius: 20,
 
         backgroundColor: 'rgba(255,255,255,0.18)',
 

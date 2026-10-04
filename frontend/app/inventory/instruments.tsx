@@ -16,6 +16,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NotificationBell from '../../components/common/NotificationBell';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTheme } from '../../contexts/ThemeContext';
 
 type InventoryItem = {
     item_id: string;
@@ -54,6 +55,7 @@ const getImageUri = (value?: string | null) => {
 
 export default function InstrumentsScreen() {
     const router = useRouter();
+    const { theme } = useTheme();
 
     const { user, hasPermission } = useAuth();
 
@@ -289,7 +291,7 @@ export default function InstrumentsScreen() {
     }
 
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, { backgroundColor: theme.background }]}>
             <ScrollView
                 showsVerticalScrollIndicator={false}
                 refreshControl={

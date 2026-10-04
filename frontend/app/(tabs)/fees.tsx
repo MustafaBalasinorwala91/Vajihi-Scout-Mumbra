@@ -652,7 +652,7 @@ const styles = StyleSheet.create({
   },
 
   header: {
-    paddingTop: 70,
+    paddingTop: 80,
     paddingHorizontal: 24,
     paddingBottom: 110, // was 140
     borderBottomLeftRadius: 40,

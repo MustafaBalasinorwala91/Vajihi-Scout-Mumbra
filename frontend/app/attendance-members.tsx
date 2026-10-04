@@ -4,6 +4,7 @@ import React, {
 } from 'react';
 import { wp, hp } from '../utils/responsive';
 import { rf } from '../utils/fonts';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
     View,
     Text,
@@ -16,7 +17,7 @@ import {
 } from 'react-native';
 
 import { LinearGradient } from 'expo-linear-gradient';
-
+import { useTheme } from '../contexts/ThemeContext';
 import {
     Ionicons,
 } from '@expo/vector-icons';
@@ -34,12 +35,15 @@ export default function AttendanceMembersScreen() {
 
     const router = useRouter();
     const { user } = useAuth();
+    const { theme } = useTheme();
     const canManageAttendance =
         user?.role === 'admin' ||
         user?.permissions?.attendance;
 
     const [members, setMembers] =
         useState<any[]>([]);
+
+    const [positionTags, setPositionTags] = useState<any[]>([]);
 
     const [filteredMembers, setFilteredMembers] =
         useState<any[]>([]);
@@ -154,6 +158,35 @@ export default function AttendanceMembersScreen() {
 
         }
     };
+    const loadPositionTags = async () => {
+        try {
+            const token = await AsyncStorage.getItem('session_token');
+            if (!token) return;
+
+            const response = await fetch(
+                `${BACKEND_URL}/api/tags`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                }
+            );
+
+            if (!response.ok) return;
+
+            const data = await response.json();
+            setPositionTags(data);
+        } catch (error) {
+            console.log('POSITION TAGS ERROR:', error);
+        }
+    };
+    const getPosition = (tag?: string) => {
+        if (!tag) return null;
+
+        return positionTags.find(
+            (position) => position.value === tag
+        );
+    };
 
     useEffect(() => {
 
@@ -170,6 +203,7 @@ export default function AttendanceMembersScreen() {
         }
 
         fetchMembers();
+        loadPositionTags();
 
         if (editMode === 'true') {
 
@@ -359,7 +393,12 @@ export default function AttendanceMembersScreen() {
 
     return (
 
-        <View style={styles.container}>
+        <View
+            style={[
+                styles.container,
+                { backgroundColor: theme.background },
+            ]}
+        >
 
             {/* HEADER */}
             <LinearGradient
@@ -403,7 +442,15 @@ export default function AttendanceMembersScreen() {
             </LinearGradient>
 
             {/* SEARCH */}
-            <View style={styles.searchWrapper}>
+            <View
+                style={[
+                    styles.searchWrapper,
+                    {
+                        backgroundColor: theme.input,
+                        borderColor: theme.inputBorder,
+                    },
+                ]}
+            >
 
                 <Ionicons
                     name="search"
@@ -413,13 +460,25 @@ export default function AttendanceMembersScreen() {
 
                 <TextInput
                     placeholder="Search members..."
+                    placeholderTextColor={theme.placeholder}
                     value={search}
                     onChangeText={setSearch}
-                    style={styles.searchInput}
+                    style={[
+                        styles.searchInput,
+                        { color: theme.title },
+                    ]}
                 />
 
             </View>
-            <View style={styles.eventInfoCard}>
+            <View
+                style={[
+                    styles.eventInfoCard,
+                    {
+                        backgroundColor: theme.card,
+                        borderColor: theme.border,
+                    },
+                ]}
+            >
 
                 <Ionicons
                     name="bookmark-outline"
@@ -429,11 +488,21 @@ export default function AttendanceMembersScreen() {
 
                 <View style={{ marginLeft: 12, flex: 1 }}>
 
-                    <Text style={styles.eventInfoLabel}>
+                    <Text
+                        style={[
+                            styles.eventInfoLabel,
+                            { color: theme.subtitle },
+                        ]}
+                    >
                         Selected Event
                     </Text>
 
-                    <Text style={styles.eventInfoValue}>
+                    <Text
+                        style={[
+                            styles.eventInfoValue,
+                            { color: theme.title },
+                        ]}
+                    >
                         {eventName}
                     </Text>
 
@@ -470,19 +539,47 @@ export default function AttendanceMembersScreen() {
 
                                 <View
                                     key={member.user_id}
-                                    style={styles.memberCard}
+                                    style={[
+                                        styles.memberCard,
+                                        {
+                                            backgroundColor: theme.card,
+                                            borderColor: theme.border,
+                                        },
+                                    ]}
                                 >
 
                                     <View style={styles.memberInfo}>
 
                                         <Text
-                                            style={styles.memberName}
+                                            style={[
+                                                styles.memberName,
+                                                { color: theme.title },
+                                            ]}
                                             numberOfLines={2}
                                         >
                                             {member.name}
                                         </Text>
 
-                                        <Text style={styles.memberRole}>
+                                        {getPosition(member.tag) && (
+                                            <View
+                                                style={[
+                                                    styles.positionBadge,
+                                                    {
+                                                        backgroundColor:
+                                                            getPosition(member.tag)?.color || '#999',
+                                                    },
+                                                ]}
+                                            >
+                                                <Text style={styles.positionBadgeText}>
+                                                    {getPosition(member.tag)?.name}
+                                                </Text>
+                                            </View>
+                                        )}
+
+                                        <Text style={[
+                                            styles.memberRole,
+                                            { color: theme.subtitle },
+                                        ]}>
                                             {`${(member.role || 'Member')
                                                 .charAt(0)
                                                 .toUpperCase() +
@@ -747,7 +844,7 @@ const styles = StyleSheet.create({
     },
 
     header: {
-        paddingTop: 70,
+        paddingTop: 80,
         paddingBottom: 30,
         paddingHorizontal: 24,
         borderBottomLeftRadius: 34,
@@ -764,8 +861,8 @@ const styles = StyleSheet.create({
     },
 
     subtitle: {
-        marginTop: 6,
-        fontSize: 16,
+        marginTop: 9,
+        fontSize: 15,
         color: 'rgba(255,255,255,0.8)',
         textTransform: 'capitalize',
     },
@@ -815,6 +912,20 @@ const styles = StyleSheet.create({
     },
     memberInfo: {
         marginBottom: 14,
+    },
+    positionBadge: {
+        alignSelf: 'flex-start',
+        marginTop: 5,
+        marginBottom: 3,
+        paddingHorizontal: 9,
+        paddingVertical: 3,
+        borderRadius: 10,
+    },
+
+    positionBadgeText: {
+        color: '#fff',
+        fontSize: rf(10),
+        fontWeight: '700',
     },
 
     memberRole: {

@@ -7,6 +7,7 @@ import {
     StyleSheet,
     TouchableOpacity,
 } from 'react-native';
+import { useTheme } from '../../contexts/ThemeContext';
 
 interface Props {
     day: number;
@@ -26,6 +27,7 @@ const CalendarDay = ({
     absentCount = 0,
     onPress,
 }: Props) => {
+    const { theme } = useTheme();
 
     let backgroundColor = '#F4F3F8';
     let textColor = '#16162E';

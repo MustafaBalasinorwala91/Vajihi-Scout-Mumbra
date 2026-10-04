@@ -14,12 +14,20 @@ import {
 } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
-
+import { useTheme } from '../contexts/ThemeContext';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import { useRouter } from 'expo-router';
 
 import PermissionModal from '../components/PermissionModal';
+
+interface PositionTag {
+    tag_id: string;
+    name: string;
+    value: string;
+    color: string;
+    active: boolean;
+}
 
 interface Member {
 
@@ -28,6 +36,8 @@ interface Member {
     name: string;
 
     role: string;
+
+    tag?: string;
 
     instrument?: string;
 
@@ -49,6 +59,7 @@ interface Member {
 
 export default function ManageMembersScreen() {
     const { user } = useAuth();
+    const { theme } = useTheme();
 
     const isAdmin =
         user?.role === 'admin';
@@ -56,6 +67,9 @@ export default function ManageMembersScreen() {
 
     const [members, setMembers] =
         useState<Member[]>([]);
+
+    const [positionTags, setPositionTags] =
+        useState<PositionTag[]>([]);
 
     const [filteredMembers, setFilteredMembers] =
         useState<Member[]>([]);
@@ -71,6 +85,7 @@ export default function ManageMembersScreen() {
 
     useEffect(() => {
         loadMembers();
+        loadPositionTags();
     }, []);
 
     const loadMembers = async () => {
@@ -124,6 +139,47 @@ export default function ManageMembersScreen() {
         }
     };
 
+    const loadPositionTags = async () => {
+        try {
+            const BACKEND_URL =
+                process.env.EXPO_PUBLIC_BACKEND_URL;
+
+            const AsyncStorage =
+                require('@react-native-async-storage/async-storage').default;
+
+            const token =
+                await AsyncStorage.getItem('session_token');
+
+            if (!token) return;
+
+            const response = await fetch(
+                `${BACKEND_URL}/api/tags`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                }
+            );
+
+            if (!response.ok) {
+                console.log(
+                    'LOAD POSITION TAGS ERROR:',
+                    response.status
+                );
+                return;
+            }
+
+            const data = await response.json();
+
+            setPositionTags(data);
+        } catch (error) {
+            console.log(
+                'LOAD POSITION TAGS ERROR:',
+                error
+            );
+        }
+    };
+
     const handleSearch = (text: string) => {
         setSearch(text);
 
@@ -140,6 +196,14 @@ export default function ManageMembersScreen() {
         setSelectedMember(member);
 
         setPermissionVisible(true);
+    };
+
+    const getPosition = (tag?: string) => {
+        if (!tag) return null;
+
+        return positionTags.find(
+            (position) => position.value === tag
+        );
     };
 
     const renderMember = ({
@@ -165,11 +229,29 @@ export default function ManageMembersScreen() {
                 )}
 
                 <View style={styles.memberInfo}>
-                    <Text style={styles.memberName}
+
+                    <Text
+                        style={styles.memberName}
                         numberOfLines={2}
                     >
                         {item.name}
                     </Text>
+
+                    {getPosition(item.tag) && (
+                        <View
+                            style={[
+                                styles.positionBadge,
+                                {
+                                    backgroundColor:
+                                        getPosition(item.tag)?.color || '#999',
+                                },
+                            ]}
+                        >
+                            <Text style={styles.positionBadgeText}>
+                                {getPosition(item.tag)?.name}
+                            </Text>
+                        </View>
+                    )}
 
                     <Text
                         style={styles.memberDetails}
@@ -177,6 +259,7 @@ export default function ManageMembersScreen() {
                     >
                         {`${item.role?.charAt(0).toUpperCase()}${item.role?.slice(1) || ''} • ${item.instrument || 'None'}`}
                     </Text>
+
                 </View>
             </View>
 
@@ -228,7 +311,10 @@ export default function ManageMembersScreen() {
     }
 
     return (
-        <View style={styles.container}>
+        <View style={[
+            styles.container,
+            { backgroundColor: theme.background },
+        ]}>
 
             <LinearGradient
                 colors={['#2D1B69', '#6C4EFF']}
@@ -414,6 +500,20 @@ const styles = StyleSheet.create({
         marginTop: 4,
         fontSize: rf(12),
         color: '#666',
+    },
+
+    positionBadge: {
+        alignSelf: 'flex-start',
+        marginTop: 6,
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 12,
+    },
+
+    positionBadgeText: {
+        color: '#fff',
+        fontSize: rf(11),
+        fontWeight: '700',
     },
     actions: {
         flexDirection: 'row',

@@ -9,10 +9,12 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useTheme } from '../../contexts/ThemeContext';
 import NotificationBell from '../../components/common/NotificationBell';
 
 export default function InventoryScreen() {
   const router = useRouter();
+  const { theme } = useTheme();
 
   const categories = [
     {
@@ -64,7 +66,7 @@ export default function InventoryScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
@@ -99,7 +101,13 @@ export default function InventoryScreen() {
             <TouchableOpacity
               key={category.id}
               activeOpacity={0.9}
-              style={styles.categoryCard}
+              style={[
+                styles.categoryCard,
+                {
+                  backgroundColor: theme.card,
+                  borderColor: theme.border,
+                },
+              ]}
               onPress={() => handleCategoryPress(category.id)}
             >
               <View style={styles.categoryTop}>
@@ -186,11 +194,11 @@ const styles = StyleSheet.create({
   },
 
   header: {
-    paddingTop: 68,
-    paddingHorizontal: 20,
-    paddingBottom: 30,
-    borderBottomLeftRadius: 38,
-    borderBottomRightRadius: 38,
+    paddingTop: 80,
+    paddingHorizontal: 24,
+    paddingBottom: 100,
+    borderBottomLeftRadius: 43,
+    borderBottomRightRadius: 42,
     overflow: 'hidden',
   },
 

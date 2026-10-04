@@ -29,6 +29,7 @@ export default function MemberProfileScreen() {
     const { user_id } = useLocalSearchParams();
 
     const [member, setMember] = useState<any>(null);
+    const [positionTags, setPositionTags] = useState<any[]>([]);
     const [attendance, setAttendance] = useState<any>(null);
     const [canViewPrivate, setCanViewPrivate] = useState(false);
     const [loading, setLoading] = useState(true);
@@ -36,6 +37,7 @@ export default function MemberProfileScreen() {
 
     useEffect(() => {
         loadMember();
+        loadPositionTags();
     }, [user_id]);
     const loadMember = async () => {
         try {
@@ -72,6 +74,40 @@ export default function MemberProfileScreen() {
         } finally {
             setLoading(false);
         }
+    };
+    const loadPositionTags = async () => {
+        try {
+            const AsyncStorage =
+                require('@react-native-async-storage/async-storage').default;
+
+            const token =
+                await AsyncStorage.getItem('session_token');
+
+            if (!token) return;
+
+            const response = await fetch(
+                `${BACKEND_URL}/api/tags`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                }
+            );
+
+            if (!response.ok) return;
+
+            const data = await response.json();
+            setPositionTags(data);
+        } catch (error) {
+            console.log('POSITION TAGS ERROR:', error);
+        }
+    };
+    const getPosition = (tag?: string) => {
+        if (!tag) return null;
+
+        return positionTags.find(
+            (position) => position.value === tag
+        );
     };
     const handleDeleteMember = async () => {
         if (!member?.user_id) {
@@ -311,12 +347,27 @@ export default function MemberProfileScreen() {
                         {member?.name || 'Member'}
                     </Text>
 
-                    <View style={styles.memberBadge}>
-                        <Text style={styles.memberBadgeText}>
+                    {getPosition(member?.tag) && (
+                        <View
+                            style={[
+                                styles.memberBadge,
+                                {
+                                    backgroundColor:
+                                        getPosition(member?.tag)?.color || '#999',
+                                },
+                            ]}
+                        >
+                            <Text style={styles.memberBadgeText}>
+                                {getPosition(member?.tag)?.name}
+                            </Text>
+                        </View>
+                    )}
+
+                    <View style={styles.positionBadge}>
+                        <Text style={styles.positionBadgeText}>
                             {member?.role?.toUpperCase() || 'MEMBER'}
                         </Text>
                     </View>
-
                     <Text style={styles.bioText}>
                         {member?.instrument || 'No Instrument Assigned'}
                     </Text>
@@ -781,6 +832,19 @@ const styles = StyleSheet.create({
         fontWeight: '800',
         textAlign: 'center',
         paddingHorizontal: 20,
+    },
+    positionBadge: {
+        alignSelf: 'center',
+        marginTop: 6,
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 12,
+    },
+
+    positionBadgeText: {
+        color: '#fff',
+        fontSize: rf(11),
+        fontWeight: '700',
     },
 
     memberBadge: {

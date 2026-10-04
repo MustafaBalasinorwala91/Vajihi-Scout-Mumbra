@@ -11,6 +11,7 @@ from fastapi import (
 from fastapi.responses import FileResponse
 from exports.attendance_export import generate_attendance_excel
 import smtplib
+import socket
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from dotenv import load_dotenv
@@ -70,6 +71,8 @@ class User(BaseModel):
     permissions: UserPermissions = Field(default_factory=UserPermissions)
     tag: Optional[str] = None
     badge: Optional[str] = None
+    notifications_enabled: bool = True
+    privacy_mode: bool = True
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
@@ -554,6 +557,28 @@ class AssignTagRequest(BaseModel):
     tag: str
 
 
+class PositionTag(BaseModel):
+    tag_id: str = Field(default_factory=lambda: f"tag_{uuid.uuid4().hex[:12]}")
+    name: str
+    value: str
+    color: str = "#5B4FCE"
+    active: bool = True
+    created_by: str
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class CreatePositionTagRequest(BaseModel):
+    name: str
+    color: str = "#5B4FCE"
+
+
+class UpdatePositionTagRequest(BaseModel):
+    name: Optional[str] = None
+    color: Optional[str] = None
+    active: Optional[bool] = None
+
+
 class AssignBadgeRequest(BaseModel):
     user_id: str
     badge: str  # bronze, silver, gold
@@ -567,6 +592,11 @@ class UpdatePermissionsRequest(BaseModel):
 class ChangePasswordRequest(BaseModel):
     old_password: str
     new_password: str
+
+
+class UpdateSettingsPreferencesRequest(BaseModel):
+    notifications_enabled: Optional[bool] = None
+    privacy_mode: Optional[bool] = None
 
 
 class SimpleResetPasswordRequest(BaseModel):
@@ -602,6 +632,125 @@ class PasswordResetOTP(BaseModel):
     otp: str
     expires_at: datetime
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+# ============================================================
+# ABOUT BAND
+# ============================================================
+
+
+class AboutSettings(BaseModel):
+    settings_id: str = Field(default_factory=lambda: "about_main")
+
+    band_name: str = "Vajihi Scout Mumbra"
+    band_subtitle: str = "BGMM - Long Live His Holiness"
+    band_description: str = (
+        "A pioneering band dedicated to musical excellence, "
+        "discipline and community service."
+    )
+
+    established_year: str = "2002"
+    years_completed: str = "20+"
+    instruments_count: str = "15"
+    marches_count: str = "35"
+    uniforms_count: str = "8"
+    active_members: str = "62"
+    leadership_positions: str = "8"
+    awards_achievements: str = "50+"
+    important_events: str = "120+"
+
+    # Social media
+    instagram_id: str = ""
+    instagram_link: str = ""
+
+    whatsapp_number: str = ""
+    whatsapp_link: str = ""
+
+    youtube_id: str = ""
+    youtube_link: str = ""
+
+    updated_by: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class UpdateAboutSettingsRequest(BaseModel):
+    band_name: Optional[str] = None
+    band_subtitle: Optional[str] = None
+    band_description: Optional[str] = None
+
+    established_year: Optional[str] = None
+    years_completed: Optional[str] = None
+    instruments_count: Optional[str] = None
+    marches_count: Optional[str] = None
+    uniforms_count: Optional[str] = None
+    active_members: Optional[str] = None
+    leadership_positions: Optional[str] = None
+    awards_achievements: Optional[str] = None
+    important_events: Optional[str] = None
+    instagram_id: Optional[str] = None
+    instagram_link: Optional[str] = None
+
+    whatsapp_number: Optional[str] = None
+    whatsapp_link: Optional[str] = None
+
+    youtube_id: Optional[str] = None
+    youtube_link: Optional[str] = None
+
+
+class AboutContent(BaseModel):
+    content_id: str = Field(default_factory=lambda: f"about_{uuid.uuid4().hex[:12]}")
+
+    section_type: str
+    title: str
+    subtitle: Optional[str] = None
+
+    content: Optional[str] = None
+
+    # Used for structured sections such as
+    # instruments, uniforms, positions, rules, penalties.
+    details: Optional[dict] = None
+
+    image: Optional[str] = None
+
+    display_order: int = 0
+    active: bool = True
+
+    created_by: str
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class CreateAboutContentRequest(BaseModel):
+    section_type: str
+    title: str
+    subtitle: Optional[str] = None
+    content: Optional[str] = None
+    details: Optional[dict] = None
+    image: Optional[str] = None
+    display_order: int = 0
+
+
+class UpdateAboutContentRequest(BaseModel):
+    section_type: Optional[str] = None
+    title: Optional[str] = None
+    subtitle: Optional[str] = None
+    content: Optional[str] = None
+    details: Optional[dict] = None
+    image: Optional[str] = None
+    display_order: Optional[int] = None
+    active: Optional[bool] = None
+
+
+# Allowed About sections used by the mobile app.
+ABOUT_SECTION_TYPES = {
+    "history",
+    "instruments",
+    "uniforms",
+    "positions",
+    "rules",
+    "penalties",
+}
 
 
 # ============= NOTIFICATION HELPERS =============
@@ -675,6 +824,14 @@ async def cleanup_old_notifications():
     logger.info(f"Deleted {result.deleted_count} old notifications")
 
 
+class IPv4SMTP_SSL(smtplib.SMTP_SSL):
+    def _get_socket(self, host, port, timeout):
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(timeout)
+        sock.connect((socket.gethostbyname(host), port))
+        return self.context.wrap_socket(sock, server_hostname=host)
+
+
 async def send_email(
     to_email: str,
     subject: str,
@@ -688,8 +845,7 @@ async def send_email(
         message["To"] = to_email
         message["Subject"] = subject
         message.attach(MIMEText(body, "plain"))
-        server = smtplib.SMTP("smtp.gmail.com", 587)
-        server.starttls()
+        server = IPv4SMTP_SSL("smtp.gmail.com", 465, timeout=20)
         server.login(smtp_email, smtp_password)
         server.send_message(message)
         server.quit()
@@ -961,6 +1117,69 @@ async def change_password(
     return {"message": "Password changed successfully"}
 
 
+# ============= SETTINGS PREFERENCES =============
+
+
+@api_router.get("/settings/preferences")
+async def get_settings_preferences(
+    current_user: User = Depends(get_current_user),
+):
+    """Get current user's Settings preferences."""
+
+    user_doc = await db.users.find_one(
+        {"user_id": current_user.user_id},
+        {
+            "_id": 0,
+            "notifications_enabled": 1,
+            "privacy_mode": 1,
+        },
+    )
+
+    if not user_doc:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    return {
+        "notifications_enabled": user_doc.get("notifications_enabled", True),
+        "privacy_mode": user_doc.get("privacy_mode", True),
+    }
+
+
+@api_router.put("/settings/preferences")
+async def update_settings_preferences(
+    data: UpdateSettingsPreferencesRequest,
+    current_user: User = Depends(get_current_user),
+):
+    """Update current user's Settings preferences."""
+
+    update_data = {}
+
+    if data.notifications_enabled is not None:
+        update_data["notifications_enabled"] = data.notifications_enabled
+
+    if data.privacy_mode is not None:
+        update_data["privacy_mode"] = data.privacy_mode
+
+    if update_data:
+        await db.users.update_one(
+            {"user_id": current_user.user_id},
+            {"$set": update_data},
+        )
+
+    updated_user = await db.users.find_one(
+        {"user_id": current_user.user_id},
+        {
+            "_id": 0,
+            "notifications_enabled": 1,
+            "privacy_mode": 1,
+        },
+    )
+
+    return {
+        "notifications_enabled": updated_user.get("notifications_enabled", True),
+        "privacy_mode": updated_user.get("privacy_mode", True),
+    }
+
+
 @api_router.post("/auth/send-reset-otp")
 async def send_reset_otp(data: SendOTPRequest):
     user = await db.users.find_one({"username": data.username})
@@ -1127,9 +1346,275 @@ async def get_attendance_members(current_user: User = Depends(get_current_user))
             "instrument": 1,
             "picture": 1,
             "permissions": 1,
+            "tag": 1,
         },
     ).to_list(1000)
     return members
+
+
+# ============================================================
+# ABOUT BAND ENDPOINTS
+# ============================================================
+
+
+@api_router.get("/about/settings")
+async def get_about_settings(
+    current_user: User = Depends(get_current_user),
+):
+    """Get the main About page information for authenticated users."""
+    document = await db.about_settings.find_one(
+        {"settings_id": "about_main"},
+        {"_id": 0},
+    )
+
+    # Create the default document on first use so the frontend always
+    # has usable content even before the admin opens the management page.
+    if not document:
+        default_settings = AboutSettings().model_dump()
+        await db.about_settings.insert_one(default_settings)
+        document = default_settings
+
+    return document
+
+
+@api_router.put("/about/settings")
+async def update_about_settings(
+    data: UpdateAboutSettingsRequest,
+    admin: User = Depends(require_admin),
+):
+    """Update the main About page information. Admin only."""
+    update_dict = data.model_dump(
+        exclude_unset=True,
+        exclude_none=True,
+    )
+
+    # Do not allow an empty string to replace required display fields.
+    for field_name, value in update_dict.items():
+        if isinstance(value, str) and not value.strip():
+            raise HTTPException(
+                status_code=400,
+                detail=f"{field_name} cannot be empty",
+            )
+        if isinstance(value, str):
+            update_dict[field_name] = value.strip()
+
+    now = datetime.now(timezone.utc)
+    update_dict["updated_by"] = admin.user_id
+    update_dict["updated_at"] = now
+
+    existing = await db.about_settings.find_one(
+        {"settings_id": "about_main"},
+        {"_id": 0},
+    )
+
+    if existing:
+        await db.about_settings.update_one(
+            {"settings_id": "about_main"},
+            {"$set": update_dict},
+        )
+    else:
+        settings = AboutSettings(
+            **update_dict,
+            settings_id="about_main",
+        )
+        await db.about_settings.insert_one(settings.model_dump())
+
+    updated = await db.about_settings.find_one(
+        {"settings_id": "about_main"},
+        {"_id": 0},
+    )
+
+    return updated
+
+
+@api_router.get("/about/content")
+async def get_about_content(
+    section_type: Optional[str] = Query(default=None),
+    include_inactive: bool = Query(default=False),
+    current_user: User = Depends(get_current_user),
+):
+    """Get About child-section content. Authenticated users can read active content."""
+    if section_type:
+        section_type = section_type.strip().lower()
+        if section_type not in ABOUT_SECTION_TYPES:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid section_type. Allowed values: {', '.join(sorted(ABOUT_SECTION_TYPES))}",
+            )
+
+    query = {}
+
+    if section_type:
+        query["section_type"] = section_type
+
+    # Only admins may request inactive records for management purposes.
+    if not (current_user.role == "admin" and include_inactive):
+        query["active"] = True
+
+    records = (
+        await db.about_content.find(
+            query,
+            {"_id": 0},
+        )
+        .sort("display_order", 1)
+        .sort("created_at", 1)
+        .to_list(1000)
+    )
+
+    return records
+
+
+@api_router.get("/about/content/{content_id}")
+async def get_about_content_item(
+    content_id: str,
+    current_user: User = Depends(get_current_user),
+):
+    """Get one About content item."""
+    query = {"content_id": content_id}
+
+    if current_user.role != "admin":
+        query["active"] = True
+
+    document = await db.about_content.find_one(
+        query,
+        {"_id": 0},
+    )
+
+    if not document:
+        raise HTTPException(
+            status_code=404,
+            detail="About content not found",
+        )
+
+    return document
+
+
+@api_router.post("/about/content")
+async def create_about_content(
+    data: CreateAboutContentRequest,
+    admin: User = Depends(require_admin),
+):
+    """Create About child-section content. Admin only."""
+    section_type = data.section_type.strip().lower()
+
+    if section_type not in ABOUT_SECTION_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid section_type. Allowed values: {', '.join(sorted(ABOUT_SECTION_TYPES))}",
+        )
+
+    title = data.title.strip()
+    if not title:
+        raise HTTPException(
+            status_code=400,
+            detail="title cannot be empty",
+        )
+
+    now = datetime.now(timezone.utc)
+
+    content = AboutContent(
+        section_type=section_type,
+        title=title,
+        subtitle=data.subtitle.strip() if data.subtitle else None,
+        content=data.content.strip() if data.content else None,
+        details=data.details,
+        image=data.image,
+        display_order=data.display_order,
+        active=True,
+        created_by=admin.user_id,
+        created_at=now,
+        updated_at=now,
+    )
+
+    await db.about_content.insert_one(content.model_dump())
+
+    return {
+        "message": "About content created successfully",
+        "content": content.model_dump(),
+    }
+
+
+@api_router.put("/about/content/{content_id}")
+async def update_about_content(
+    content_id: str,
+    data: UpdateAboutContentRequest,
+    admin: User = Depends(require_admin),
+):
+    """Update About child-section content. Admin only."""
+    existing = await db.about_content.find_one(
+        {"content_id": content_id},
+        {"_id": 0},
+    )
+
+    if not existing:
+        raise HTTPException(
+            status_code=404,
+            detail="About content not found",
+        )
+
+    update_dict = data.model_dump(
+        exclude_unset=True,
+        exclude_none=True,
+    )
+
+    if "section_type" in update_dict:
+        section_type = update_dict["section_type"].strip().lower()
+        if section_type not in ABOUT_SECTION_TYPES:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid section_type. Allowed values: {', '.join(sorted(ABOUT_SECTION_TYPES))}",
+            )
+        update_dict["section_type"] = section_type
+
+    if "title" in update_dict:
+        title = update_dict["title"].strip()
+        if not title:
+            raise HTTPException(
+                status_code=400,
+                detail="title cannot be empty",
+            )
+        update_dict["title"] = title
+
+    for field_name in ("subtitle", "content", "image"):
+        if field_name in update_dict and isinstance(update_dict[field_name], str):
+            update_dict[field_name] = update_dict[field_name].strip()
+
+    update_dict["updated_at"] = datetime.now(timezone.utc)
+
+    await db.about_content.update_one(
+        {"content_id": content_id},
+        {"$set": update_dict},
+    )
+
+    updated = await db.about_content.find_one(
+        {"content_id": content_id},
+        {"_id": 0},
+    )
+
+    return {
+        "message": "About content updated successfully",
+        "content": updated,
+    }
+
+
+@api_router.delete("/about/content/{content_id}")
+async def delete_about_content(
+    content_id: str,
+    admin: User = Depends(require_admin),
+):
+    """Delete About child-section content. Admin only."""
+    result = await db.about_content.delete_one({"content_id": content_id})
+
+    if result.deleted_count == 0:
+        raise HTTPException(
+            status_code=404,
+            detail="About content not found",
+        )
+
+    return {
+        "message": "About content deleted successfully",
+        "content_id": content_id,
+    }
 
 
 # ============= ATTENDANCE ENDPOINTS =============
@@ -5145,6 +5630,203 @@ async def get_uniform_dashboard(
 
 
 # ============= ADMIN - TAG MANAGEMENT =============
+
+# ============= POSITION / TAG MANAGEMENT =============
+
+DEFAULT_POSITION_TAGS = [
+    {"name": "Captain", "value": "captain", "color": "#D4AF37"},
+    {"name": "Vice Captain", "value": "vice_captain", "color": "#850000"},
+    {"name": "Leader", "value": "leader", "color": "#4CAF50"},
+    {"name": "Group Leader", "value": "g_leader", "color": "#2196F3"},
+    {"name": "Band InCharge", "value": "band_in_charge", "color": "#FF9800"},
+    {
+        "name": "Instrument InCharge",
+        "value": "instrument_in_charge",
+        "color": "#9C27B0",
+    },
+    {"name": "Trainer", "value": "trainer", "color": "#00ACC1"},
+    {"name": "Secretary", "value": "secretary", "color": "#E91E63"},
+    {"name": "Joint Secretary", "value": "joint_secretary", "color": "#795548"},
+    {"name": "Member", "value": "member", "color": "#607D8B"},
+]
+
+
+@api_router.get("/tags")
+async def get_position_tags(
+    current_user: User = Depends(get_current_user),
+):
+    """Get all active position tags."""
+
+    tags = (
+        await db.position_tags.find({"active": True}, {"_id": 0})
+        .sort("name", 1)
+        .to_list(100)
+    )
+
+    # Create default positions the first time the system is used.
+    now = datetime.now(timezone.utc)
+
+    existing_values = {
+        tag["value"]
+        for tag in await db.position_tags.find({}, {"_id": 0, "value": 1}).to_list(1000)
+    }
+
+    missing_documents = []
+
+    for item in DEFAULT_POSITION_TAGS:
+        if item["value"] not in existing_values:
+            tag = PositionTag(
+                name=item["name"],
+                value=item["value"],
+                color=item["color"],
+                created_by="system",
+                created_at=now,
+                updated_at=now,
+            )
+            missing_documents.append(tag.model_dump())
+
+    if missing_documents:
+        await db.position_tags.insert_many(missing_documents)
+
+    tags = (
+        await db.position_tags.find({"active": True}, {"_id": 0})
+        .sort("name", 1)
+        .to_list(100)
+    )
+
+    return tags
+
+
+@api_router.post("/admin/tags")
+async def create_position_tag(
+    data: CreatePositionTagRequest,
+    admin: User = Depends(require_admin),
+):
+    """Create a new position tag. Admin only."""
+
+    name = data.name.strip()
+
+    if not name:
+        raise HTTPException(
+            status_code=400,
+            detail="Position name cannot be empty",
+        )
+
+    value = name.lower().strip()
+    value = "_".join(value.split())
+
+    existing = await db.position_tags.find_one({"value": value})
+
+    if existing:
+        raise HTTPException(
+            status_code=400,
+            detail="A position with this name already exists",
+        )
+
+    now = datetime.now(timezone.utc)
+
+    tag = PositionTag(
+        name=name,
+        value=value,
+        color=data.color.strip() or "#5B4FCE",
+        created_by=admin.user_id,
+        created_at=now,
+        updated_at=now,
+    )
+
+    await db.position_tags.insert_one(tag.model_dump())
+
+    return {
+        "message": "Position created successfully",
+        "tag": tag.model_dump(),
+    }
+
+
+@api_router.put("/admin/tags/{tag_id}")
+async def update_position_tag(
+    tag_id: str,
+    data: UpdatePositionTagRequest,
+    admin: User = Depends(require_admin),
+):
+    """Update a position tag. Admin only."""
+
+    existing = await db.position_tags.find_one({"tag_id": tag_id})
+
+    if not existing:
+        raise HTTPException(
+            status_code=404,
+            detail="Position not found",
+        )
+
+    update_data = {}
+
+    if data.name is not None:
+        name = data.name.strip()
+
+        if not name:
+            raise HTTPException(
+                status_code=400,
+                detail="Position name cannot be empty",
+            )
+
+        update_data["name"] = name
+
+    if data.color is not None:
+        update_data["color"] = data.color.strip() or "#5B4FCE"
+
+    if data.active is not None:
+        update_data["active"] = data.active
+
+    update_data["updated_at"] = datetime.now(timezone.utc)
+
+    await db.position_tags.update_one(
+        {"tag_id": tag_id},
+        {"$set": update_data},
+    )
+
+    updated = await db.position_tags.find_one(
+        {"tag_id": tag_id},
+        {"_id": 0},
+    )
+
+    return {
+        "message": "Position updated successfully",
+        "tag": updated,
+    }
+
+
+@api_router.delete("/admin/tags/{tag_id}")
+async def delete_position_tag(
+    tag_id: str,
+    admin: User = Depends(require_admin),
+):
+    """Delete a position tag. Admin only."""
+
+    tag = await db.position_tags.find_one({"tag_id": tag_id})
+
+    if not tag:
+        raise HTTPException(
+            status_code=404,
+            detail="Position not found",
+        )
+
+    # Do not allow deletion while members still use this position.
+    assigned_count = await db.users.count_documents({"tag": tag["value"]})
+
+    if assigned_count > 0:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"This position is assigned to {assigned_count} "
+                "member(s). Revoke/change their position first."
+            ),
+        )
+
+    await db.position_tags.delete_one({"tag_id": tag_id})
+
+    return {"message": "Position deleted successfully"}
+
+
 @api_router.put("/admin/update-permissions")
 async def update_user_permissions(
     data: UpdatePermissionsRequest,
@@ -5191,28 +5873,59 @@ async def update_user_permissions(
 
 @api_router.post("/admin/assign-tag")
 async def assign_tag(
-    tag_data: AssignTagRequest, current_user: User = Depends(get_current_user)
+    tag_data: AssignTagRequest,
+    admin: User = Depends(require_admin),
 ):
-    """Assign tag to user"""
-    await require_permission("members", current_user)
-    await db.users.update_one(
-        {"user_id": tag_data.user_id}, {"$set": {"tag": tag_data.tag}}
+    """Assign position tag to user. Admin only."""
+
+    # Check member exists
+    user = await db.users.find_one({"user_id": tag_data.user_id})
+
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail="User not found",
+        )
+
+    # Check position exists
+    tag = await db.position_tags.find_one(
+        {
+            "value": tag_data.tag,
+            "active": True,
+        },
+        {"_id": 0},
     )
+
+    if not tag:
+        raise HTTPException(
+            status_code=404,
+            detail="Position not found or inactive",
+        )
+
+    await db.users.update_one(
+        {"user_id": tag_data.user_id},
+        {"$set": {"tag": tag["value"]}},
+    )
+
     notification = NotificationRecord(
         user_id=tag_data.user_id,
-        title="Tag Assigned",
-        message=f"You have been assigned tag: {tag_data.tag}",
+        title="Position Assigned",
+        message=f"You have been assigned position: {tag['name']}",
     )
-    await db.notifications.insert_one(notification.dict())
-    return {"message": "Tag assigned"}
+
+    await db.notifications.insert_one(notification.model_dump())
+
+    return {
+        "message": "Position assigned successfully",
+        "tag": tag,
+    }
 
 
 @api_router.post("/admin/assign-badge")
 async def assign_badge(
-    badge_data: AssignBadgeRequest, current_user: User = Depends(get_current_user)
+    badge_data: AssignBadgeRequest, admin: User = Depends(require_admin)
 ):
     """Assign badge to user"""
-    await require_permission("members", current_user)
     await db.users.update_one(
         {"user_id": badge_data.user_id}, {"$set": {"badge": badge_data.badge}}
     )
@@ -5223,6 +5936,37 @@ async def assign_badge(
     )
     await db.notifications.insert_one(notification.dict())
     return {"message": "Badge assigned successfully"}
+
+
+@api_router.delete("/admin/users/{user_id}/tag")
+async def remove_user_tag(
+    user_id: str,
+    admin: User = Depends(require_admin),
+):
+    """Remove position from a user. Admin only."""
+
+    user = await db.users.find_one({"user_id": user_id})
+
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail="User not found",
+        )
+
+    await db.users.update_one(
+        {"user_id": user_id},
+        {"$set": {"tag": None}},
+    )
+
+    notification = NotificationRecord(
+        user_id=user_id,
+        title="Position Removed",
+        message="Your band position has been removed.",
+    )
+
+    await db.notifications.insert_one(notification.model_dump())
+
+    return {"message": "Position removed successfully"}
 
 
 @api_router.delete("/admin/delete-user/{user_id}")
@@ -5392,6 +6136,9 @@ async def create_admin():
     await db.uniform_repairs.create_index("assignment_id")
     await db.uniform_purchases.create_index("purchase_id", unique=True)
     await db.uniform_purchases.create_index("catalog_id")
+    await db.about_settings.create_index("settings_id", unique=True)
+    await db.about_content.create_index("content_id", unique=True)
+    await db.about_content.create_index([("section_type", 1), ("display_order", 1)])
     admin_username = os.getenv("ADMIN_USERNAME", "")
     admin_password = os.getenv("ADMIN_PASSWORD", "")
     existing_admin = await db.users.find_one({"username": admin_username})
